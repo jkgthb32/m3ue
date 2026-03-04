@@ -5,6 +5,7 @@ namespace App\Filament\GuestPanel\Resources\Series;
 use App\Facades\LogoFacade;
 use App\Facades\PlaylistFacade;
 use App\Filament\GuestPanel\Pages\Concerns\HasPlaylist;
+use App\Filament\GuestPanel\Resources\Series\RelationManagers\EpisodesRelationManager;
 use App\Models\CustomPlaylist;
 use App\Models\Playlist;
 use App\Models\Series;
@@ -169,7 +170,7 @@ class SeriesResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            EpisodesRelationManager::class,
         ];
     }
 

@@ -27,7 +27,6 @@ class PlaylistAlias extends Model
         'expires_at' => 'datetime',
         'custom_headers' => 'array',
         'strict_live_ts' => 'boolean',
-        'use_sticky_session' => 'boolean',
     ];
 
     /**
@@ -288,22 +287,6 @@ class PlaylistAlias extends Model
     {
         return $this->vod_channels()
             ->where('enabled', true);
-    }
-
-    public function enableProxy(): Attribute
-    {
-        return Attribute::make(
-            get: function ($value) {
-                if ($value) {
-                    // Check playlist user has access to proxy features
-                    if (! $this->user?->canUseProxy()) {
-                        return false;
-                    }
-                }
-
-                return $value;
-            }
-        );
     }
 
     public function liveCount(): Attribute

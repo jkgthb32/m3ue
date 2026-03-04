@@ -281,17 +281,14 @@ class ProcessM3uImportComplete implements ShouldQueue
         // Update the playlist
         $update = [
             'status' => Status::Completed,
-            'channels' => 0,
+            'channels' => 0, // not using...
             'synced' => now(),
             'errors' => null,
             'sync_time' => $completedIn,
-            'auto_retry_503_count' => 0,
-            'auto_retry_503_last_at' => null,
             'processing' => [
                 ...$playlist->processing ?? [],
                 'live_processing' => false,
                 'vod_processing' => false,
-                'series_processing' => false,
             ],
         ];
         if ($this->runningLiveImport) {

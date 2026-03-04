@@ -139,17 +139,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Network Broadcast Configuration
-    |--------------------------------------------------------------------------
-    |
-    | Enable the network broadcasting service for HLS pseudo-TV streaming
-    |
-    */
-
-    'network_broadcast_enabled' => env('NETWORK_BROADCAST_ENABLED', false),
-
-    /*
-    |--------------------------------------------------------------------------
     | Shared Streaming Configuration
     |--------------------------------------------------------------------------
     |

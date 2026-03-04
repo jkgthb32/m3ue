@@ -23,7 +23,6 @@ class MergedPlaylistFactory extends Factory
         return [
             'name' => $this->faker->name(),
             'uuid' => $this->faker->uuid(),
-            'id_channel_by' => 'stream_id',
             'user_id' => User::factory(),
         ];
     }

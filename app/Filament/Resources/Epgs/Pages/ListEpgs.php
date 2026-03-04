@@ -11,8 +11,6 @@ class ListEpgs extends ListRecords
 {
     protected static string $resource = EpgResource::class;
 
-    protected ?string $subheading = 'Add multiple EPG sources and map them to your playlists. Multiple EPG sources can be mapped to the same playlist, and the guide data will be merged together.';
-
     protected function getHeaderActions(): array
     {
         return [

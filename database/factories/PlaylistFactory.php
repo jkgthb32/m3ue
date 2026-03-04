@@ -29,7 +29,6 @@ class PlaylistFactory extends Factory
             'channels' => $this->faker->randomNumber(),
             'synced' => $this->faker->dateTime(),
             'errors' => $this->faker->text(),
-            'id_channel_by' => 'stream_id',
             'user_id' => User::factory(),
         ];
     }

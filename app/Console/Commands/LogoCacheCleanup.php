@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Http\Controllers\LogoProxyController;
-use App\Settings\GeneralSettings;
 use Illuminate\Console\Command;
 
 class LogoCacheCleanup extends Command
@@ -29,14 +28,6 @@ class LogoCacheCleanup extends Command
      */
     public function handle(): int
     {
-        $all = $this->option('all') ?? false;
-
-        if (! $all && $this->isPermanentCacheEnabled()) {
-            $this->info('Skipping expired logo cache cleanup because permanent cache is enabled.');
-
-            return Command::SUCCESS;
-        }
-
         if (! $this->option('force') && ! $this->confirm('This will delete expired logo cache files. Continue?')) {
             $this->info('Operation cancelled.');
 
@@ -44,6 +35,8 @@ class LogoCacheCleanup extends Command
         }
 
         $this->info('Cleaning up expired logo cache...');
+
+        $all = $this->option('all') ?? false;
 
         $controller = new LogoProxyController;
         $clearedCount = $all
@@ -53,16 +46,5 @@ class LogoCacheCleanup extends Command
         $this->info("Cleared {$clearedCount} logo cache files.");
 
         return Command::SUCCESS;
-    }
-
-    protected function isPermanentCacheEnabled(): bool
-    {
-        try {
-            $settings = app(GeneralSettings::class);
-
-            return (bool) ($settings->logo_cache_permanent ?? false);
-        } catch (\Exception $e) {
-            return false;
-        }
     }
 }

@@ -18,7 +18,7 @@ return [
     |
     */
 
-    'default' => env('LOG_CHANNEL', 'stack'),
+    'default' => 'daily', // env('LOG_CHANNEL', 'daily'),
 
     /*
     |--------------------------------------------------------------------------
@@ -54,19 +54,8 @@ return [
 
         'stack' => [
             'driver' => 'stack',
-            'channels' => ['daily', 'stdout'],
+            'channels' => explode(',', env('LOG_STACK', 'single')),
             'ignore_exceptions' => false,
-        ],
-
-        'stdout' => [
-            'driver' => 'monolog',
-            'level' => env('LOG_LEVEL', 'info'),
-            'handler' => StreamHandler::class,
-            'formatter' => env('LOG_STDERR_FORMATTER'),
-            'with' => [
-                'stream' => 'php://stdout',
-            ],
-            'processors' => [PsrLogMessageProcessor::class],
         ],
 
         'single' => [

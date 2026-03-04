@@ -123,14 +123,7 @@ class ProxyController extends Controller
      *         uptime: string,
      *         started_at: string,
      *         process_running: bool,
-     *         model: array{
-     *             type?: string,
-     *             id?: int|string,
-     *             title?: string,
-     *             logo?: string|null,
-     *             channel_number?: int|null,
-     *             playlist_uuid?: string|null
-     *         },
+     *         model: array{title: string, logo: string|null},
      *         clients: array<array{ip: string, username: string|null, connected_at: string, duration: string, bytes_received: string, bandwidth: string, is_active: bool}>,
      *         has_failover: bool,
      *         error_count: int,
@@ -204,24 +197,12 @@ class ProxyController extends Controller
             if (isset($stream['metadata']['type']) && isset($stream['metadata']['id'])) {
                 $modelType = $stream['metadata']['type'];
                 $modelId = $stream['metadata']['id'];
-                $model = [
-                    'type' => $modelType,
-                    'id' => $modelId,
-                ];
                 $title = null;
                 $logo = null;
 
                 if ($modelType === 'channel') {
-                    $channel = Channel::query()
-                        ->with('playlist:id,uuid')
-                        ->find($modelId);
-
-                    $model['channel_number'] = null;
-                    $model['playlist_uuid'] = $stream['metadata']['playlist_uuid'] ?? null;
-
+                    $channel = Channel::find($modelId);
                     if ($channel) {
-                        $model['channel_number'] = $channel->channel;
-                        $model['playlist_uuid'] = $channel->playlist?->uuid ?? $model['playlist_uuid'];
                         $title = $channel->name_custom ?? $channel->name ?? $channel->title;
                         $logo = LogoFacade::getChannelLogoUrl($channel);
                     }
@@ -234,8 +215,10 @@ class ProxyController extends Controller
                 }
 
                 if ($title || $logo) {
-                    $model['title'] = $title ?? 'N/A';
-                    $model['logo'] = $logo;
+                    $model = [
+                        'title' => $title ?? 'N/A',
+                        'logo' => $logo,
+                    ];
                 }
             }
 

@@ -22,7 +22,6 @@ class UnmergeChannels implements ShouldQueue
         public $user,
         public $playlistId = null,
         public $groupId = null,
-        public bool $reactivateChannels = false,
     ) {}
 
     /**
@@ -30,8 +29,6 @@ class UnmergeChannels implements ShouldQueue
      */
     public function handle(): void
     {
-        $reactivatedCount = 0;
-
         if ($this->playlistId) {
             // Get the playlist channels IDs
             $channelIds = Channel::where('playlist_id', $this->playlistId);
@@ -43,10 +40,6 @@ class UnmergeChannels implements ShouldQueue
                 // Bulk delete in chunks of 100
                 $idsToDelete[] = $channel->id;
                 if (count($idsToDelete) >= 100) {
-                    // Reactivate failover channels if requested
-                    if ($this->reactivateChannels) {
-                        $reactivatedCount += $this->reactivateFailoverChannels($idsToDelete);
-                    }
                     ChannelFailover::whereIn('channel_id', $idsToDelete)->delete();
                     $idsToDelete = [];
                 }
@@ -54,9 +47,6 @@ class UnmergeChannels implements ShouldQueue
 
             // Clean up any remaining IDs
             if (count($idsToDelete) > 0) {
-                if ($this->reactivateChannels) {
-                    $reactivatedCount += $this->reactivateFailoverChannels($idsToDelete);
-                }
                 ChannelFailover::whereIn('channel_id', $idsToDelete)->delete();
             }
         } elseif ($this->groupId) {
@@ -69,9 +59,6 @@ class UnmergeChannels implements ShouldQueue
                 // Bulk delete in chunks of 100
                 $idsToDelete[] = $channel->id;
                 if (count($idsToDelete) >= 100) {
-                    if ($this->reactivateChannels) {
-                        $reactivatedCount += $this->reactivateFailoverChannels($idsToDelete);
-                    }
                     ChannelFailover::whereIn('channel_id', $idsToDelete)->delete();
                     $idsToDelete = [];
                 }
@@ -79,51 +66,17 @@ class UnmergeChannels implements ShouldQueue
 
             // Clean up any remaining IDs
             if (count($idsToDelete) > 0) {
-                if ($this->reactivateChannels) {
-                    $reactivatedCount += $this->reactivateFailoverChannels($idsToDelete);
-                }
                 ChannelFailover::whereIn('channel_id', $idsToDelete)->delete();
             }
         } else {
             // Delete all user failovers if no playlist is specified
-            if ($this->reactivateChannels) {
-                // Reactivate all failover channels for this user
-                $failoverChannelIds = ChannelFailover::where('user_id', $this->user->id)
-                    ->pluck('channel_failover_id')
-                    ->toArray();
-                if (! empty($failoverChannelIds)) {
-                    $reactivatedCount = Channel::whereIn('id', $failoverChannelIds)
-                        ->where('enabled', false)
-                        ->update(['enabled' => true]);
-                }
-            }
             ChannelFailover::where('user_id', $this->user->id)->delete();
         }
 
-        $this->sendCompletionNotification($reactivatedCount);
+        $this->sendCompletionNotification();
     }
 
-    /**
-     * Reactivate failover channels that were disabled during merge
-     */
-    protected function reactivateFailoverChannels(array $masterChannelIds): int
-    {
-        // Get all failover channel IDs for the given master channels
-        $failoverChannelIds = ChannelFailover::whereIn('channel_id', $masterChannelIds)
-            ->pluck('channel_failover_id')
-            ->toArray();
-
-        if (empty($failoverChannelIds)) {
-            return 0;
-        }
-
-        // Reactivate disabled failover channels
-        return Channel::whereIn('id', $failoverChannelIds)
-            ->where('enabled', false)
-            ->update(['enabled' => true]);
-    }
-
-    protected function sendCompletionNotification(int $reactivatedCount = 0)
+    protected function sendCompletionNotification()
     {
         if ($this->playlistId) {
             $message = 'Channels in the specified playlist have been unmerged successfully.';
@@ -132,11 +85,6 @@ class UnmergeChannels implements ShouldQueue
         } else {
             $message = 'All channels have been unmerged successfully.';
         }
-
-        if ($reactivatedCount > 0) {
-            $message .= " {$reactivatedCount} channel(s) were reactivated.";
-        }
-
         Notification::make()
             ->title('Unmerge complete')
             ->body($message)

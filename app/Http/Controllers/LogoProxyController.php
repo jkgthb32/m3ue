@@ -2,10 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\LogoCacheService;
 use App\Settings\GeneralSettings;
 use Carbon\Carbon;
-use Illuminate\Http\Client\Response as HttpClientResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Http;
@@ -18,7 +16,7 @@ class LogoProxyController extends Controller
     /**
      * Serve a cached logo from an encoded URL
      */
-    public function serveLogo(Request $request, string $encodedUrl, ?string $filename = null): Response|StreamedResponse
+    public function serveLogo(Request $request, string $encodedUrl): Response|StreamedResponse
     {
         try {
             // Decode the URL
@@ -29,12 +27,15 @@ class LogoProxyController extends Controller
                 return $this->returnPlaceholder();
             }
 
+            // Generate a cache key based on the original URL
+            $cacheKey = 'logo_'.md5($originalUrl);
+            $cacheFile = "cached-logos/{$cacheKey}";
+
             // Make sure the cache directory exists
-            Storage::disk('local')->makeDirectory(LogoCacheService::CACHE_DIRECTORY);
+            Storage::disk('local')->makeDirectory('cached-logos');
 
             // Check if the logo is already cached
-            $cacheFile = LogoCacheService::findCacheFileForUrl($originalUrl);
-            if ($cacheFile && Storage::disk('local')->exists($cacheFile)) {
+            if (Storage::disk('local')->exists($cacheFile)) {
                 return $this->serveFromCache($cacheFile);
             }
 
@@ -45,16 +46,8 @@ class LogoProxyController extends Controller
                 return $this->returnPlaceholder();
             }
 
-            $extension = LogoCacheService::normalizeExtensionFromContentType(
-                $logoData['content_type'] ?? null,
-                $originalUrl
-            );
-
-            $cacheFile = LogoCacheService::cacheFileForUrl($originalUrl, $extension);
-
-            // Cache the logo and metadata
+            // Cache the logo
             Storage::disk('local')->put($cacheFile, $logoData['content']);
-            LogoCacheService::writeCacheMetadata($originalUrl, $cacheFile, $logoData['content_type'] ?? null);
 
             return $this->serveFromCache($cacheFile, $logoData['content_type']);
         } catch (\Exception $e) {
@@ -91,14 +84,13 @@ class LogoProxyController extends Controller
         }
 
         if (empty($originalUrl) || ! filter_var($originalUrl, FILTER_VALIDATE_URL)) {
-            $url = LogoCacheService::getPlaceholderUrl('logo');
+            $url = '/placeholder.png';
         } else {
             $encodedUrl = rtrim(strtr(base64_encode($originalUrl), '+/', '-_'), '=');
-            $filename = LogoCacheService::buildProxyFilename($originalUrl);
             // Use override URL only if enabled, not internal request, AND logos are included in override
             $url = $proxyUrlOverride && ! $internal && $includeLogosInOverride
-                ? rtrim($proxyUrlOverride, '/')."/logo-proxy/{$encodedUrl}/{$filename}"
-                : url("/logo-proxy/{$encodedUrl}/{$filename}");
+                ? rtrim($proxyUrlOverride, '/')."/logo-proxy/{$encodedUrl}"
+                : url("/logo-proxy/{$encodedUrl}");
         }
 
         return $url;
@@ -110,7 +102,6 @@ class LogoProxyController extends Controller
     private function fetchRemoteLogo(string $url): ?array
     {
         try {
-            /** @var HttpClientResponse $response */
             $response = Http::timeout(10)
                 ->withHeaders([
                     'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
@@ -177,11 +168,7 @@ class LogoProxyController extends Controller
      */
     private function returnPlaceholder(): StreamedResponse
     {
-        $configuredPlaceholderUrl = LogoCacheService::getPlaceholderUrl('logo');
-        $configuredPlaceholderPath = parse_url($configuredPlaceholderUrl, PHP_URL_PATH);
-        $placeholderPath = $configuredPlaceholderPath
-            ? public_path(ltrim($configuredPlaceholderPath, '/'))
-            : public_path('placeholder.png');
+        $placeholderPath = public_path('placeholder.png');
 
         if (! file_exists($placeholderPath)) {
             // Return a minimal 1x1 transparent PNG if placeholder doesn't exist
@@ -234,26 +221,10 @@ class LogoProxyController extends Controller
      */
     public function clearExpiredCache(): int
     {
-        try {
-            $settings = app(GeneralSettings::class);
-            if ($settings->logo_cache_permanent) {
-                return 0;
-            }
-        } catch (\Exception $e) {
-        }
-
         $cleared = 0;
-        $logoFiles = Storage::disk('local')->files(LogoCacheService::CACHE_DIRECTORY);
-
-        if (empty($logoFiles)) {
-            return 0;
-        }
+        $logoFiles = Storage::disk('local')->files('cached-logos');
 
         foreach ($logoFiles as $file) {
-            if (str_ends_with($file, '.meta.json')) {
-                continue;
-            }
-
             // Get file last modified timestamp
             $lastModified = Carbon::createFromTimestamp(Storage::disk('local')->lastModified($file));
 
@@ -261,12 +232,6 @@ class LogoProxyController extends Controller
             if (now()->diffInDays($lastModified) > config('app.logo_cache_expiry_days', 30)) {
                 Storage::disk('local')->delete($file);
                 $cleared++;
-
-                $metaFile = LogoCacheService::CACHE_DIRECTORY.'/'.pathinfo($file, PATHINFO_FILENAME).'.meta.json';
-                if (Storage::disk('local')->exists($metaFile)) {
-                    Storage::disk('local')->delete($metaFile);
-                    $cleared++;
-                }
             }
         }
 
@@ -279,7 +244,7 @@ class LogoProxyController extends Controller
     public function clearCache(): int
     {
         $cleared = 0;
-        $logoFiles = Storage::disk('local')->files(LogoCacheService::CACHE_DIRECTORY);
+        $logoFiles = Storage::disk('local')->files('cached-logos');
         foreach ($logoFiles as $file) {
             Storage::disk('local')->delete($file);
             $cleared++;
@@ -291,7 +256,7 @@ class LogoProxyController extends Controller
     public static function getCacheSize(): string
     {
         $totalSize = 0;
-        $logoFiles = Storage::disk('local')->files(LogoCacheService::CACHE_DIRECTORY);
+        $logoFiles = Storage::disk('local')->files('cached-logos');
         foreach ($logoFiles as $file) {
             $totalSize += Storage::disk('local')->size($file);
         }

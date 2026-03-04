@@ -43,7 +43,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use RyanChandler\FilamentProgressColumn\ProgressColumn;
 
@@ -71,18 +70,6 @@ class EpgResource extends Resource
         return 4;
     }
 
-    public static function getEloquentQuery(): Builder
-    {
-        return parent::getEloquentQuery()
-            ->where('is_merged', false);
-    }
-
-    public static function getGlobalSearchEloquentQuery(): Builder
-    {
-        return parent::getGlobalSearchEloquentQuery()
-            ->where('is_merged', false);
-    }
-
     public static function form(Schema $schema): Schema
     {
         return $schema
@@ -91,13 +78,12 @@ class EpgResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return $table->persistSortInSession()
-            ->modifyQueryUsing(function (Builder $query) {
-                $query->withCount([
-                    'channels',
-                ]);
+        return $table
+            ->filtersTriggerAction(function ($action) {
+                return $action->button()->label('Filters');
             })
-            ->deferLoading()
+            ->paginated([10, 25, 50, 100])
+            ->defaultPaginationPageOption(25)
             ->columns([
                 TextColumn::make('id')
                     ->searchable()
