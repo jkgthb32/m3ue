@@ -28,6 +28,13 @@ class WatchProgressRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->persistSortInSession()
+            ->filtersTriggerAction(function ($action) {
+                return $action->button()->label('Filters');
+            })
+            ->deferLoading()
+            ->paginated([10, 25, 50, 100])
+            ->defaultPaginationPageOption(25)
             ->defaultSort('last_watched_at', 'desc')
             ->columns([
                 ImageColumn::make('content_logo')
@@ -35,7 +42,7 @@ class WatchProgressRelationManager extends RelationManager
                     ->getStateUsing(fn (ViewerWatchProgress $record): ?string => $record->content_logo)
                     ->height(50)
                     ->width(35)
-                    ->defaultImageUrl('/images/placeholder-movie.png'),
+                    ->defaultImageUrl('/images/vod-series-poster-placeholder.png'),
 
                 TextColumn::make('content_type')
                     ->label('Type')

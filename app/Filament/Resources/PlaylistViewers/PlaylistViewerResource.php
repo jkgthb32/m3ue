@@ -10,6 +10,9 @@ use App\Models\MergedPlaylist;
 use App\Models\Playlist;
 use App\Models\PlaylistAlias;
 use App\Models\PlaylistViewer;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\ViewAction;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
@@ -23,13 +26,11 @@ class PlaylistViewerResource extends Resource
 {
     protected static ?string $model = PlaylistViewer::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-users';
-
-    protected static ?string $navigationLabel = 'Viewers';
+    protected static ?string $navigationLabel = 'Playlist Viewers';
 
     protected static string|\UnitEnum|null $navigationGroup = 'Playlist';
 
-    protected static ?int $navigationSort = 10;
+    protected static ?int $navigationSort = 5;
 
     protected static ?string $recordTitleAttribute = 'name';
 
@@ -47,7 +48,14 @@ class PlaylistViewerResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return $table
+        return $table->persistFiltersInSession()
+            ->persistSortInSession()
+            ->filtersTriggerAction(function ($action) {
+                return $action->button()->label('Filters');
+            })
+            ->deferLoading()
+            ->paginated([10, 25, 50, 100])
+            ->defaultPaginationPageOption(25)
             ->columns([
                 TextColumn::make('name')
                     ->searchable()
@@ -62,18 +70,18 @@ class PlaylistViewerResource extends Resource
                 TextColumn::make('viewerable_type')
                     ->label('Playlist Type')
                     ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'App\\Models\\Playlist' => 'Playlist',
-                        'App\\Models\\CustomPlaylist' => 'Custom Playlist',
-                        'App\\Models\\MergedPlaylist' => 'Merged Playlist',
-                        'App\\Models\\PlaylistAlias' => 'Playlist Alias',
+                        Playlist::class => 'Playlist',
+                        CustomPlaylist::class => 'Custom Playlist',
+                        MergedPlaylist::class => 'Merged Playlist',
+                        PlaylistAlias::class => 'Playlist Alias',
                         default => class_basename($state),
                     })
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
-                        'App\\Models\\Playlist' => 'primary',
-                        'App\\Models\\CustomPlaylist' => 'info',
-                        'App\\Models\\MergedPlaylist' => 'warning',
-                        'App\\Models\\PlaylistAlias' => 'gray',
+                        Playlist::class => 'primary',
+                        CustomPlaylist::class => 'info',
+                        MergedPlaylist::class => 'warning',
+                        PlaylistAlias::class => 'gray',
                         default => 'gray',
                     }),
 
@@ -97,19 +105,19 @@ class PlaylistViewerResource extends Resource
                 SelectFilter::make('viewerable_type')
                     ->label('Playlist Type')
                     ->options([
-                        'App\\Models\\Playlist' => 'Playlist',
-                        'App\\Models\\CustomPlaylist' => 'Custom Playlist',
-                        'App\\Models\\MergedPlaylist' => 'Merged Playlist',
-                        'App\\Models\\PlaylistAlias' => 'Playlist Alias',
+                        Playlist::class => 'Playlist',
+                        CustomPlaylist::class => 'Custom Playlist',
+                        MergedPlaylist::class => 'Merged Playlist',
+                        PlaylistAlias::class => 'Playlist Alias',
                     ]),
             ])
             ->recordActions([
-                \Filament\Actions\ViewAction::make()
+                ViewAction::make()
                     ->button()->hiddenLabel()->size('sm'),
             ], position: RecordActionsPosition::BeforeCells)
             ->toolbarActions([
-                \Filament\Actions\BulkActionGroup::make([
-                    \Filament\Actions\DeleteBulkAction::make()
+                BulkActionGroup::make([
+                    DeleteBulkAction::make()
                         ->disabled(fn ($records) => $records->contains('is_admin', true))
                         ->tooltip('Admin viewers cannot be deleted'),
                 ]),
