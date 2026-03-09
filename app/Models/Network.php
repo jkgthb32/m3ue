@@ -6,6 +6,7 @@ use App\Enums\TranscodeMode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Network extends Model
@@ -115,6 +116,24 @@ class Network extends Model
     public function networkPlaylist(): BelongsTo
     {
         return $this->belongsTo(\App\Models\Playlist::class, 'network_playlist_id');
+    }
+
+    /**
+     * Get the custom playlists this network is attached to.
+     */
+    public function customPlaylists(): BelongsToMany
+    {
+        return $this->belongsToMany(CustomPlaylist::class, 'network_custom_playlist')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get the merged playlists this network is attached to.
+     */
+    public function mergedPlaylists(): BelongsToMany
+    {
+        return $this->belongsToMany(MergedPlaylist::class, 'network_merged_playlist')
+            ->withTimestamps();
     }
 
     /**
