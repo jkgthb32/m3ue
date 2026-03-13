@@ -1519,7 +1519,7 @@ class ChannelController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => count($failovers) . ' failover(s) set for channel ' . $channel->id,
+            'message' => count($failovers).' failover(s) set for channel '.$channel->id,
             'data' => [
                 'channel_id' => $channel->id,
                 'failovers' => $failovers,
@@ -1565,7 +1565,7 @@ class ChannelController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Failovers cleared for channel ' . $channel->id,
+            'message' => 'Failovers cleared for channel '.$channel->id,
             'data' => [
                 'channel_id' => $channel->id,
                 'removed_count' => $removedCount,
@@ -1680,7 +1680,7 @@ class ChannelController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Failovers set for ' . count($mappings) . ' channel(s)',
+            'message' => 'Failovers set for '.count($mappings).' channel(s)',
             'data' => [
                 'mappings_applied' => count($mappings),
                 'total_failovers_created' => $totalFailoversCreated,
