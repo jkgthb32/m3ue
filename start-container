@@ -177,37 +177,40 @@ if [ "${M3U_PROXY_ENABLED}" = "true" ]; then
     echo "✅ HLS storage configured"
     echo ""
 
-    echo "📡 Configuring broadcast segment storage..."
-    echo "   HLS_BROADCAST_DIR: ${HLS_BROADCAST_DIR}"
+    # If network broadcast enabled, configure broadcast segment storage
+    if [ "${NETWORK_BROADCAST_ENABLED}" = "true" ]; then
+        echo "📡 Configuring broadcast segment storage..."
+        echo "   HLS_BROADCAST_DIR: ${HLS_BROADCAST_DIR}"
 
-    # Create broadcast storage directory if it doesn't exist
-    if [ ! -d "$HLS_BROADCAST_DIR" ]; then
-        echo "   Creating broadcast storage directory..."
-        mkdir -p "$HLS_BROADCAST_DIR"
-        chown -R $WWWUSER:$WWWGROUP "$HLS_BROADCAST_DIR"
-        chmod 755 "$HLS_BROADCAST_DIR"
-        echo "   ✅ Created: $HLS_BROADCAST_DIR"
-    else
-        echo "   ✅ Directory exists: $HLS_BROADCAST_DIR"
-        chmod 755 "$HLS_BROADCAST_DIR"
+        # Create broadcast storage directory if it doesn't exist
+        if [ ! -d "$HLS_BROADCAST_DIR" ]; then
+            echo "   Creating broadcast storage directory..."
+            mkdir -p "$HLS_BROADCAST_DIR"
+            chown -R $WWWUSER:$WWWGROUP "$HLS_BROADCAST_DIR"
+            chmod 755 "$HLS_BROADCAST_DIR"
+            echo "   ✅ Created: $HLS_BROADCAST_DIR"
+        else
+            echo "   ✅ Directory exists: $HLS_BROADCAST_DIR"
+            chmod 755 "$HLS_BROADCAST_DIR"
+        fi
+
+        # Check available space for broadcast storage
+        BROADCAST_SPACE_KB=$(df -k "$HLS_BROADCAST_DIR" | tail -1 | awk '{print $4}')
+        BROADCAST_SPACE_MB=$((BROADCAST_SPACE_KB / 1024))
+        BROADCAST_SPACE_GB=$((BROADCAST_SPACE_MB / 1024))
+
+        echo "   Available space: ${BROADCAST_SPACE_GB}GB (${BROADCAST_SPACE_MB}MB)"
+
+        if [ "$BROADCAST_SPACE_MB" -lt 256 ]; then
+            echo "   ⚠️  WARNING: Low space for broadcast segments!"
+            echo "      Available: ${BROADCAST_SPACE_MB}MB"
+            echo "      Recommended: At least 256MB for network broadcasts"
+            echo "      Consider setting HLS_BROADCAST_DIR to a larger tmpfs or disk path."
+        fi
+
+        echo "✅ Broadcast storage configured"
+        echo ""
     fi
-
-    # Check available space for broadcast storage
-    BROADCAST_SPACE_KB=$(df -k "$HLS_BROADCAST_DIR" | tail -1 | awk '{print $4}')
-    BROADCAST_SPACE_MB=$((BROADCAST_SPACE_KB / 1024))
-    BROADCAST_SPACE_GB=$((BROADCAST_SPACE_MB / 1024))
-
-    echo "   Available space: ${BROADCAST_SPACE_GB}GB (${BROADCAST_SPACE_MB}MB)"
-
-    if [ "$BROADCAST_SPACE_MB" -lt 256 ]; then
-        echo "   ⚠️  WARNING: Low space for broadcast segments!"
-        echo "      Available: ${BROADCAST_SPACE_MB}MB"
-        echo "      Recommended: At least 256MB for network broadcasts"
-        echo "      Consider setting HLS_BROADCAST_DIR to a larger tmpfs or disk path."
-    fi
-
-    echo "✅ Broadcast storage configured"
-    echo ""
 fi
 
 # Redis pooling settings for embedded proxy
