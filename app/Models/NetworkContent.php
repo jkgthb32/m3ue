@@ -37,6 +37,52 @@ class NetworkContent extends Model
     {
         parent::boot();
 
+        // When content is created, regenerate schedule if needed
+        static::created(function (NetworkContent $networkContent) {
+            $network = $networkContent->network;
+
+            if (! $network) {
+                return;
+            }
+
+            // Only regenerate for sequential or shuffle schedules
+            if (! in_array($network->schedule_type, ['sequential', 'shuffle'])) {
+                \Illuminate\Support\Facades\Log::debug('Skipping schedule regeneration for manual schedule network', [
+                    'network_id' => $network->id,
+                    'network_name' => $network->name,
+                    'schedule_type' => $network->schedule_type,
+                ]);
+
+                return;
+            }
+
+            // Check if auto-regeneration is enabled
+            if ($network->auto_regenerate_schedule === false) {
+                \Illuminate\Support\Facades\Log::debug('Skipping schedule regeneration (auto_regenerate disabled)', [
+                    'network_id' => $network->id,
+                    'network_name' => $network->name,
+                ]);
+
+                return;
+            }
+
+            \Illuminate\Support\Facades\Log::info('Content added to network, regenerating schedule', [
+                'network_id' => $network->id,
+                'network_name' => $network->name,
+                'schedule_type' => $network->schedule_type,
+                'content_type' => $networkContent->contentable_type,
+            ]);
+
+            try {
+                app(\App\Services\NetworkScheduleService::class)->generateSchedule($network);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to regenerate schedule after content addition', [
+                    'network_id' => $network->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        });
+
         // When content is deleted, check if network has any remaining content
         static::deleted(function (NetworkContent $networkContent) {
             $network = $networkContent->network;
