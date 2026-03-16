@@ -120,8 +120,7 @@ export HLS_GC_AGE_THRESHOLD="${HLS_GC_AGE_THRESHOLD:-7200}" # 2 hours (increased
 
 # Configure broadcast segment storage (RAM disk for low-latency live TV)
 # Network broadcasts write short-lived .ts segments that benefit from in-memory storage.
-# Default to /dev/shm (tmpfs) so segments are never written to disk.
-export HLS_BROADCAST_DIR="${HLS_BROADCAST_DIR:-/dev/shm}"
+export HLS_BROADCAST_DIR="${HLS_BROADCAST_DIR:-/var/www/html/storage/app/hls-broadcast}"
 
 # Broadcast HLS garbage collection
 # Cleans orphaned .ts segments left behind during programme transitions
@@ -182,7 +181,6 @@ if [ "${M3U_PROXY_ENABLED}" = "true" ]; then
     echo "   HLS_BROADCAST_DIR: ${HLS_BROADCAST_DIR}"
 
     # Create broadcast storage directory if it doesn't exist
-    # /dev/shm already exists on all Linux systems, but a custom path may not
     if [ ! -d "$HLS_BROADCAST_DIR" ]; then
         echo "   Creating broadcast storage directory..."
         mkdir -p "$HLS_BROADCAST_DIR"
