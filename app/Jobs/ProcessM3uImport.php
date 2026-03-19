@@ -855,7 +855,6 @@ class ProcessM3uImport implements ShouldQueue
                             ...$channelFields,
                             'url' => $url,
                         ];
-                        // adding unique stream_id from m3u file when channel url has stream=number
                         if (!empty($channel['url']) && empty($channel['stream_id'])) {
                                 if (preg_match('/stream=(\d+)/', $channel['url'], $matches)) {
                                         $channel['stream_id'] = $matches[1]; 
@@ -935,8 +934,6 @@ class ProcessM3uImport implements ShouldQueue
                                 }
                                 
                                 // Set the source ID based on our composite index
-                                // Source_id now includes channel url when url is the only difference, meaning 
-                                // same channel names are now imported
                                 $channel['source_id'] = md5($channel['title'].'|'.$channel['url'].'|'.$chGroup);
 
                                 // Update group name to the singular name and return the channel
@@ -973,7 +970,6 @@ class ProcessM3uImport implements ShouldQueue
                             }
 
                             // Set the source ID based on our composite index
-                            // Adding channel url see above why this was done
                             $channel['source_id'] = md5($channel['title'].'|'.$channel['url'].'|'.$channel['group']);
                             
                             // Set channel number, if auto sort is enabled
