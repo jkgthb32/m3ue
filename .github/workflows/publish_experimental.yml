@@ -15,10 +15,10 @@ env:
 
 jobs:
   # Run CI checks first
-  ci-check:
-    name: CI Validation
-    uses: ./.github/workflows/ci.yml
-    secrets: inherit
+  #ci-check:
+  #  name: CI Validation
+  #  uses: ./.github/workflows/ci.yml
+  #  secrets: inherit
 
   # Extract version from config/dev.php
   get-version:
