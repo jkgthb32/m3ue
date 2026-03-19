@@ -66,6 +66,7 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: Security audit (Composer)
+        run: composer update league/commonmark -with-all-dependencies 
         run: composer audit
 
       - name: Setup Node.js
