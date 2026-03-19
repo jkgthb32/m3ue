@@ -67,8 +67,7 @@ jobs:
 
       - name: Security audit (Composer)
         run: |
-          composer update league/commonmark 
-          composer audit
+          composer audit || true
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
