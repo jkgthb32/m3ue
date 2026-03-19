@@ -855,6 +855,15 @@ class ProcessM3uImport implements ShouldQueue
                             ...$channelFields,
                             'url' => $url,
                         ];
+                        // adding unique stream_id from m3u file when channel url has stream=number
+                        if (!empty($channel['url']) && empty($channel['stream_id'])) {
+                                if (preg_match('/stream=(\d+)/', $channel['url'], $matches)) {
+                                        $channel['stream_id'] = $matches[1];  // Extract just "the number"
+                                } elseif (!empty($channel['title'])) {    // Fallback
+                                        $channel['stream_id'] = mb_strtolower(trim($channel['title']));
+                                }
+                        }
+
                         $extvlcopt = [];
                         $kodidrop = [];
                         foreach ($item->getExtTags() as $extTag) {
@@ -926,7 +935,11 @@ class ProcessM3uImport implements ShouldQueue
                                 }
 
                                 // Set the source ID based on our composite index
-                                $channel['source_id'] = md5($channel['title'].$channel['name'].$chGroup);
+                                // Source_id now includes channel url when url is the only difference, meaning 
+                                // same channel names are now imported
+                                //$channel['source_id'] = md5($channel['title'].$channel['name'].$chGroup);
+                                $channel['source_id'] = md5($channel['title'].'|'.$channel['url'].'|'.$chGroup);
+
 
                                 // Update group name to the singular name and return the channel
                                 $channel['group'] = $chGroup;
@@ -962,8 +975,10 @@ class ProcessM3uImport implements ShouldQueue
                             }
 
                             // Set the source ID based on our composite index
-                            $channel['source_id'] = md5($channel['title'].$channel['name'].$channel['group']);
-
+                            // $channel['source_id'] = md5($channel['title'].$channel['name'].$channel['group']);
+                            // see above why this was done
+                            $channel['source_id'] = md5($channel['title'].'|'.$channel['url'].'|'.$channel['group']);
+                            
                             // Set channel number, if auto sort is enabled
                             if ($autoSort) {
                                 $channel['sort'] = $channelNo;
