@@ -933,13 +933,12 @@ class ProcessM3uImport implements ShouldQueue
 
                                     continue;
                                 }
-
+                                
                                 // Set the source ID based on our composite index
                                 // Source_id now includes channel url when url is the only difference, meaning 
                                 // same channel names are now imported
                                 // $channel['source_id'] = md5($channel['title'].$channel['name'].$chGroup);
                                 $channel['source_id'] = md5($channel['title'].'|'.$channel['url'].'|'.$chGroup);
-
 
                                 // Update group name to the singular name and return the channel
                                 $channel['group'] = $chGroup;
