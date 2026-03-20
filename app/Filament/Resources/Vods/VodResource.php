@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Vods;
 
 use App\Facades\LogoFacade;
-use App\Facades\ProxyFacade;
 use App\Facades\SortFacade;
 use App\Filament\Actions\AssetPickerAction;
 use App\Filament\Resources\VodResource\Pages;
@@ -1522,7 +1521,7 @@ class VodResource extends Resource
                             AssetPickerAction::upload('logo'),
                             AssetPickerAction::browse('logo'),
                         ]),
-                    TextInput::make('url_proxy')
+                    TextInput::make('proxy_url')
                         ->label('Proxy URL')
                         ->columnSpan(2)
                         ->prefixIcon('heroicon-m-globe-alt')
@@ -1530,18 +1529,7 @@ class VodResource extends Resource
                             'heroicon-m-question-mark-circle',
                             tooltip: 'Use m3u editor proxy to access this channel.'
                         )
-                        ->formatStateUsing(function ($record) {
-                            if (! $record || ! $record->id) {
-                                return null;
-                            }
-                            try {
-                                return ProxyFacade::getProxyUrlForChannel(
-                                    $record->id,
-                                );
-                            } catch (Exception $e) {
-                                return null;
-                            }
-                        })
+                        ->formatStateUsing(fn ($record) => $record?->getProxyUrl())
                         ->helperText('m3u editor proxy url.')
                         ->disabled() // make it read-only but copyable
                         ->dehydrated(false) // don't save the value in the database

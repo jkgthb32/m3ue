@@ -16,6 +16,7 @@ return new class extends Migration
                 'name' => 'admin',
                 'email' => 'admin@test.com',
                 'password' => bcrypt('admin'),
+                'must_change_password' => true,
             ]);
         }
     }
