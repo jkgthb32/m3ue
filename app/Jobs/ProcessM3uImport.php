@@ -862,7 +862,7 @@ class ProcessM3uImport implements ShouldQueue
                                 } elseif (!empty($channel['title'])) {    // Fallback
                                         $channel['stream_id'] = mb_strtolower(trim($channel['title']));
                                 }
-                        
+                        }
                         $extvlcopt = [];
                         $kodidrop = [];
                         foreach ($item->getExtTags() as $extTag) {
