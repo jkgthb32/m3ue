@@ -800,7 +800,10 @@ class AppServiceProvider extends ServiceProvider
     private function applyTimezoneFromSettings(): void
     {
         // TZ environment variable always takes priority
-        if (! empty(getenv('TZ'))) {
+        $envTimezone = getenv('TZ');
+        if (! empty($envTimezone)) {
+            config(['app.timezone' => $envTimezone]);
+
             return;
         }
 
