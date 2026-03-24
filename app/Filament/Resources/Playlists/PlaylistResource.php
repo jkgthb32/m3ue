@@ -2311,12 +2311,20 @@ class PlaylistResource extends Resource
                             Select::make('target')
                                 ->label('Target')
                                 ->options([
-                                    'channels' => 'Channels (Live & VOD)',
+                                    'channels' => 'Live Channels',
+                                    'vod_channels' => 'VOD Channels',
+                                    'groups' => 'Live Groups',
+                                    'vod_groups' => 'VOD Groups',
                                     'series' => 'Series',
+                                    'categories' => 'Series Categories',
                                 ])
                                 ->default('channels')
                                 ->required()
                                 ->live()
+                                ->afterStateUpdated(fn (Set $set, ?string $state) => $set('column', match ($state) {
+                                    'groups', 'vod_groups', 'categories', 'series' => 'name',
+                                    default => 'title',
+                                }))
                                 ->columnSpan(2),
                             Select::make('column')
                                 ->label('Column to modify')
@@ -2326,14 +2334,27 @@ class PlaylistResource extends Resource
                                         'genre' => 'Genre',
                                         'plot' => 'Plot',
                                     ],
-                                    default => [
+                                    'groups', 'vod_groups' => [
+                                        'name' => 'Group Name',
+                                    ],
+                                    'categories' => [
+                                        'name' => 'Category Name',
+                                    ],
+                                    'vod_channels' => [
                                         'title' => 'Channel Title',
                                         'name' => 'Channel Name (tvg-name)',
                                         'info->description' => 'Description (metadata)',
                                         'info->genre' => 'Genre (metadata)',
                                     ],
+                                    default => [
+                                        'title' => 'Channel Title',
+                                        'name' => 'Channel Name (tvg-name)',
+                                    ],
                                 })
-                                ->default('title')
+                                ->default(fn (Get $get): string => match ($get('target')) {
+                                    'groups', 'vod_groups', 'categories', 'series' => 'name',
+                                    default => 'title',
+                                })
                                 ->required()
                                 ->columnSpan(2),
 
@@ -2364,6 +2385,89 @@ class PlaylistResource extends Resource
                             : null
                         ),
                 ]),
+            Section::make('Sort Alpha Configs')
+                ->description('Define sort configurations that automatically run after each playlist sync. Configurations execute in order.')
+                ->columnSpanFull()
+                ->collapsible()
+                ->collapsed($creating)
+                ->schema([
+                    Repeater::make('sort_alpha_config')
+                        ->label('')
+                        ->schema([
+                            Toggle::make('enabled')
+                                ->label('Enabled')
+                                ->default(true)
+                                ->inline(false)
+                                ->columnSpan(1),
+                            Select::make('target')
+                                ->label('Target')
+                                ->options([
+                                    'live_groups' => 'Live Groups',
+                                    'vod_groups' => 'VOD Groups',
+                                ])
+                                ->live()
+                                ->default('live_groups')
+                                ->required()
+                                ->afterStateUpdated(fn (Set $set) => $set('group', ['all']))
+                                ->columnSpan(1),
+                            Select::make('group')
+                                ->label('Groups')
+                                ->options(fn (Get $get, ?Playlist $record): array => [
+                                    'all' => 'All groups',
+                                    ...($record
+                                        ? SourceGroup::where('playlist_id', $record->id)
+                                            ->where('type', match ($get('target')) {
+                                                'vod_groups' => 'vod',
+                                                default => 'live',
+                                            })
+                                            ->orderBy('name')
+                                            ->pluck('name', 'name')
+                                            ->toArray()
+                                        : []),
+                                ])
+                                ->default(['all'])
+                                ->multiple()
+                                ->searchable()
+                                ->columnSpan(3),
+                            Select::make('column')
+                                ->label('Sort By')
+                                ->options([
+                                    'title' => 'Title (or override if set)',
+                                    'name' => 'Name (or override if set)',
+                                    'stream_id' => 'ID (or override if set)',
+                                    'channel' => 'Channel No.',
+                                ])
+                                ->default('title')
+                                ->required()
+                                ->columnSpan(2),
+                            Select::make('sort')
+                                ->label('Sort Order')
+                                ->options([
+                                    'ASC' => 'A to Z or 0 to 9',
+                                    'DESC' => 'Z to A or 9 to 0',
+                                ])
+                                ->default('ASC')
+                                ->required()
+                                ->columnSpan(2),
+                        ])
+                        ->columns(9)
+                        ->reorderable()
+                        ->reorderableWithButtons()
+                        ->collapsible()
+                        ->defaultItems(0)
+                        ->addActionLabel('Add sort config')
+                        ->itemLabel(function (array $state): ?string {
+                            if (empty($state['target'])) {
+                                return null;
+                            }
+                            $targetLabel = $state['target'] === 'vod_groups' ? 'VOD Groups' : 'Live Groups';
+                            $groups = (array) ($state['group'] ?? ['all']);
+                            $groupLabel = \in_array('all', $groups) ? 'All' : implode(', ', $groups);
+                            $disabled = ($state['enabled'] ?? true) ? '' : ' (disabled)';
+
+                            return "{$targetLabel} — {$groupLabel}{$disabled}";
+                        }),
+                ]),
         ];
 
         $outputFields = [
@@ -2376,7 +2480,6 @@ class PlaylistResource extends Resource
                 ->schema([
                     Toggle::make('sync_logs_enabled')
                         ->label('Enable Sync Logs')
-                        ->columnSpan('full')
                         ->inline(false)
                         ->live()
                         ->default(true)
@@ -2390,6 +2493,16 @@ class PlaylistResource extends Resource
                         ->inline(false)
                         ->default(true)
                         ->helperText('NOTE: You will need to re-sync your playlist, or wait for the next scheduled sync, if changing this. This will overwrite any existing channel sort order customization for this playlist.'),
+                    Toggle::make('disable_catchup')
+                        ->label('Disable catch-up')
+                        ->columnSpan(1)
+                        ->inline(false)
+                        ->default(false)
+                        ->hintIcon(
+                            'heroicon-m-question-mark-circle',
+                            tooltip: 'When enabled, catch-up attributes will be stripped from M3U output and Xtream API responses (tv_archive, tv_archive_duration, has_archive).'
+                        )
+                        ->helperText('Strip all catch-up related attributes from the playlist output and Xtream API. Useful when your provider\'s catch-up doesn\'t work or is unreliable.'),
                     Toggle::make('auto_channel_increment')
                         ->label('Auto channel number increment')
                         ->columnSpan(1)
