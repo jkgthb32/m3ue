@@ -2411,9 +2411,9 @@ class PlaylistResource extends Resource
                         ->default(false)
                         ->hintIcon(
                             'heroicon-m-question-mark-circle',
-                            tooltip: 'When enabled, catch-up attributes (catchup, catchup-source, timeshift) will be stripped from the M3U output.'
+                            tooltip: 'When enabled, catch-up attributes will be stripped from M3U output and Xtream API responses (tv_archive, tv_archive_duration, has_archive).'
                         )
-                        ->helperText('Strip all catch-up related attributes from the playlist output. Useful when your provider\'s catch-up doesn\'t work.'),
+                        ->helperText('Strip all catch-up related attributes from the playlist output and Xtream API. Useful when your provider\'s catch-up doesn\'t work.'),
                 ]),
             Section::make('Streaming Output')
                 ->description('Output processing options')
