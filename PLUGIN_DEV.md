@@ -360,7 +360,6 @@ Current capabilities:
 - `epg_repair`
 - `epg_processor`
 - `channel_processor`
-- `matcher_provider`
 - `stream_analysis`
 - `scheduled`
 

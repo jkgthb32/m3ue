@@ -51,9 +51,6 @@ services:
       - M3U_PROXY_HOST=localhost
       - M3U_PROXY_TOKEN=devpass
 
-      # ML Matcher (our new service)
-      - ML_MATCHER_ENABLED=true
-
       # Plugin malware scanning
       - PLUGIN_SCAN_DRIVER=${PLUGIN_SCAN_DRIVER:-fake}
       - CLAMAV_BINARY=${CLAMAV_BINARY:-clamscan}
@@ -76,7 +73,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 120s  # Longer start period — first build downloads ML model
+      start_period: 120s  # Longer start period for first-run setup
 
   m3u-editor-dev-test:
     build:

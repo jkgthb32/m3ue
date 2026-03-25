@@ -103,7 +103,6 @@ return [
         'epg_repair' => \App\Plugins\Contracts\EpgRepairPluginInterface::class,
         'epg_processor' => \App\Plugins\Contracts\EpgProcessorPluginInterface::class,
         'channel_processor' => \App\Plugins\Contracts\ChannelProcessorPluginInterface::class,
-        'matcher_provider' => \App\Plugins\Contracts\MatcherProviderInterface::class,
         'stream_analysis' => \App\Plugins\Contracts\StreamAnalysisPluginInterface::class,
         'scheduled' => \App\Plugins\Contracts\ScheduledPluginInterface::class,
     ],
