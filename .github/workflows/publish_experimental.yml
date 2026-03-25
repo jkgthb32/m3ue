@@ -1,7 +1,7 @@
-name: Experimental
+name: Exp-jk
 on:
   push:
-    branches: [experimental]
+    branches: [exp-jk]
     paths:
       - 'config/dev.php'
   workflow_dispatch:
