@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\PlaylistService;
 use App\Settings\GeneralSettings;
 use Carbon\Carbon;
 use Exception;
@@ -75,7 +76,7 @@ class Episode extends Model
         return $this->morphMany(StrmFileMapping::class, 'syncable');
     }
 
-    public function getFloatingPlayerAttributes(?string $username, ?string $password): array
+    public function getFloatingPlayerAttributes(?string $username = null, ?string $password = null): array
     {
         $settings = app(GeneralSettings::class);
 
@@ -150,7 +151,7 @@ class Episode extends Model
 
         // Always proxy the internal proxy so we can attempt to transcode the stream for better compatibility
         // This also prevents CORS and mixed-content issues
-        $url = rtrim(url("/series/{$username}/{$password}/".$this->id.'.'.$episodeFormat), '.');
+        $url = rtrim(PlaylistService::getBaseUrl("/series/{$username}/{$password}/".$this->id.'.'.$episodeFormat), '.');
 
         // Append query parameter so our Xtream Stream controller knows to proxy the stream regardless of playlist settings
         $url .= '?'.http_build_query([
