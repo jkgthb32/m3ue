@@ -40,6 +40,7 @@ use App\Services\DateFormatService;
 use App\Services\EpgCacheService;
 use App\Services\M3uProxyService;
 use App\Services\ProfileService;
+use App\Tables\Columns\ProgressColumn;
 use App\Traits\HasUserFiltering;
 use Carbon\Carbon;
 use Cron\CronExpression;
@@ -88,7 +89,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\Rule;
-use RyanChandler\FilamentProgressColumn\ProgressColumn;
 
 class PlaylistResource extends Resource
 {

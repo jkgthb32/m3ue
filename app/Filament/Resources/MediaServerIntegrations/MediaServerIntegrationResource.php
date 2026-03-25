@@ -12,6 +12,7 @@ use App\Models\Playlist;
 use App\Models\Season;
 use App\Models\Series;
 use App\Services\MediaServerService;
+use App\Tables\Columns\ProgressColumn;
 use App\Traits\HasUserFiltering;
 use Carbon\Carbon;
 use Filament\Actions\Action;
@@ -49,7 +50,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\HtmlString;
-use RyanChandler\FilamentProgressColumn\ProgressColumn;
 
 class MediaServerIntegrationResource extends Resource
 {

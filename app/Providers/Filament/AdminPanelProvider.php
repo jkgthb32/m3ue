@@ -39,7 +39,6 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
-use Saade\FilamentLaravelLog\FilamentLaravelLogPlugin;
 use ShuvroRoy\FilamentSpatieLaravelBackup\FilamentSpatieLaravelBackupPlugin;
 
 class AdminPanelProvider extends PanelProvider
@@ -143,18 +142,6 @@ class AdminPanelProvider extends PanelProvider
                 FilamentSpatieLaravelBackupPlugin::make()
                     ->authorize(fn (): bool => in_array(auth()->user()->email, config('dev.admin_emails'), true))
                     ->usingPage(Backups::class),
-                FilamentLaravelLogPlugin::make()
-                    ->authorize(fn (): bool => in_array(auth()->user()->email, config('dev.admin_emails'), true))
-                    ->navigationGroup('Tools')
-                    ->navigationLabel('Logs')
-                    ->navigationIcon(null)
-                    ->activeNavigationIcon(null)
-                    ->navigationSort(6)
-                    ->title('Application Logs')
-                    ->slug('logs')
-                    ->logDirs([
-                        config('app.log.dir'),
-                    ]),
             ])
             ->maxContentWidth($settings['content_width'])
             ->middleware([
