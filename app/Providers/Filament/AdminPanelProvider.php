@@ -113,12 +113,14 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->navigationItems([
                 NavigationItem::make('API Docs')
+                    ->label('API Docs ↗')
                     ->url('/docs/api', shouldOpenInNewTab: true)
                     ->group('Tools')
                     ->sort(sort: 9)
                     ->icon(null)
                     ->visible(fn (): bool => in_array(auth()->user()->email, config('dev.admin_emails'), true)),
                 NavigationItem::make('Queue Manager')
+                    ->label('Queue Manager ↗')
                     ->url('/horizon', shouldOpenInNewTab: true)
                     ->group('Tools')
                     ->sort(10)
