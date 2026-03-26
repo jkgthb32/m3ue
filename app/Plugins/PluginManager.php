@@ -184,18 +184,26 @@ class PluginManager
         ]);
 
         $stagingRoot = $this->reviewStagingRoot($review);
-        $this->resetReviewStagingRoot($stagingRoot);
-        $workingPath = $stagingRoot.DIRECTORY_SEPARATOR.'source';
+        try {
+            $this->resetReviewStagingRoot($stagingRoot);
+            $workingPath = $stagingRoot.DIRECTORY_SEPARATOR.'source';
 
-        File::ensureDirectoryExists($workingPath);
-        File::copyDirectory($sourcePath, $workingPath);
+            File::ensureDirectoryExists($workingPath);
+            if (! File::copyDirectory($sourcePath, $workingPath)) {
+                throw new RuntimeException("Unable to copy plugin source directory [{$sourcePath}] into review staging.");
+            }
 
-        return $this->refreshInstallReview(
-            $review->fresh(),
-            sourcePath: $sourcePath,
-            stagingPath: $stagingRoot,
-            extractedPath: $workingPath,
-        );
+            return $this->refreshInstallReview(
+                $review->fresh(),
+                sourcePath: $sourcePath,
+                stagingPath: $stagingRoot,
+                extractedPath: $workingPath,
+            );
+        } catch (Throwable $exception) {
+            $this->cleanupFailedReviewStage($review, $stagingRoot);
+
+            throw $exception;
+        }
     }
 
     public function stageArchiveReview(string $archivePath, ?int $userId = null): PluginInstallReview
@@ -1367,14 +1375,39 @@ class PluginManager
 
     private function downloadGithubReleaseArchive(string $releaseUrl, string $destinationPath): void
     {
-        $response = Http::timeout((int) config('plugins.github.download_timeout', 60))
-            ->get($releaseUrl);
+        $timeout = (int) config('plugins.github.download_timeout', 60);
+        $limit = (int) config('plugins.archive_limits.max_archive_bytes', 50 * 1024 * 1024);
 
-        if (! $response->successful()) {
-            throw new RuntimeException("Failed to download GitHub release archive from [{$releaseUrl}].");
+        try {
+            $response = Http::timeout($timeout)
+                ->withOptions([
+                    'sink' => $destinationPath,
+                    'progress' => function ($downloadTotal, $downloadedBytes) use ($limit, $releaseUrl): void {
+                        if ($limit <= 0) {
+                            return;
+                        }
+
+                        if (($downloadTotal > 0 && $downloadTotal > $limit) || $downloadedBytes > $limit) {
+                            throw new RuntimeException("GitHub release archive [{$releaseUrl}] exceeds the maximum allowed archive size.");
+                        }
+                    },
+                ])
+                ->get($releaseUrl);
+        } catch (Throwable $exception) {
+            if (is_file($destinationPath)) {
+                File::delete($destinationPath);
+            }
+
+            throw $exception;
         }
 
-        File::put($destinationPath, $response->body());
+        if (! $response->successful()) {
+            if (is_file($destinationPath)) {
+                File::delete($destinationPath);
+            }
+
+            throw new RuntimeException("Failed to download GitHub release archive from [{$releaseUrl}].");
+        }
     }
 
     private function assertArchiveSizeWithinLimit(string $archivePath, string $displayPath): void

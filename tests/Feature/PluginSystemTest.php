@@ -332,6 +332,32 @@ it('cleans staged archive reviews when archive extraction fails before refresh',
     }
 });
 
+it('cleans staged directory reviews when refresh fails after staging starts', function () {
+    $pluginId = 'directory-stage-fail-'.Str::lower(Str::random(6));
+    $paths = createReviewFixturePlugin($pluginId);
+    $stagingDirectory = config('plugins.staging_directory');
+    $stagingPattern = rtrim((string) $stagingDirectory, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.'review-*';
+    $stagingDirectoriesBefore = File::glob($stagingPattern) ?: [];
+    $validator = Mockery::mock(\App\Plugins\PluginValidator::class);
+    $validator->shouldReceive('validatePath')
+        ->once()
+        ->andThrow(new RuntimeException('validation exploded'));
+
+    app()->instance(\App\Plugins\PluginValidator::class, $validator);
+    app()->forgetInstance(PluginManager::class);
+
+    try {
+        expect(fn () => app(PluginManager::class)->stageDirectoryReview($paths['source']))
+            ->toThrow(RuntimeException::class, 'validation exploded');
+
+        expect(PluginInstallReview::query()->where('source_path', $paths['source'])->exists())->toBeFalse();
+        expect(File::glob($stagingPattern) ?: [])->toEqualCanonicalizing($stagingDirectoriesBefore);
+    } finally {
+        cleanupReviewFixturePlugin($pluginId);
+        app()->forgetInstance(PluginManager::class);
+    }
+});
+
 it('discards stale install reviews when staged payload disappears before scan', function () {
     $pluginId = 'stale-scan-'.Str::lower(Str::random(6));
     $paths = createReviewFixturePlugin($pluginId);

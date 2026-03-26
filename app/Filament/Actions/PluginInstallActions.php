@@ -99,6 +99,9 @@ class PluginInstallActions
                             'application/x-tar',
                             'application/gzip',
                             'application/x-gzip',
+                            'application/x-gtar',
+                            'application/tar+gzip',
+                            'application/octet-stream',
                         ])
                         ->maxSize((int) ceil(((int) config('plugins.archive_limits.max_archive_bytes', 50 * 1024 * 1024)) / 1024))
                         ->helperText('Upload a plugin zip, tar, or tar.gz archive. The server will stage, validate, and scan it through plugin installs.'),
