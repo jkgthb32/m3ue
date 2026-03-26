@@ -353,13 +353,19 @@ class ListSeries extends ListRecords
     {
         $playlists = Playlist::where('user_id', auth()->id())->orderBy('name')->get();
 
+        $playlistCounts = Series::where('user_id', auth()->id())
+            ->whereIn('playlist_id', $playlists->pluck('id'))
+            ->groupBy('playlist_id')
+            ->selectRaw('playlist_id, count(*) as aggregate')
+            ->pluck('aggregate', 'playlist_id');
+
         return [
             'all' => Tab::make('All Playlists')
                 ->badge(Series::where('user_id', auth()->id())->count()),
             ...($playlists->mapWithKeys(fn (Playlist $playlist) => [
                 'playlist_'.$playlist->id => Tab::make($playlist->name)
                     ->modifyQueryUsing(fn ($query) => $query->where('playlist_id', $playlist->id))
-                    ->badge(Series::where([['user_id', auth()->id()], ['playlist_id', $playlist->id]])->count()),
+                    ->badge($playlistCounts->get($playlist->id, 0)),
             ])->toArray()),
         ];
     }
@@ -430,7 +436,7 @@ class ListSeries extends ListRecords
 
         $activeTab = $this->activeTab;
         if ($activeTab && $activeTab !== 'all') {
-            $tabs = $this->getTabs();
+            $tabs = $this->getCachedTabs();
             if (isset($tabs[$activeTab])) {
                 $baseQuery = $tabs[$activeTab]->modifyQuery($baseQuery);
             }
