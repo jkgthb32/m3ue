@@ -124,12 +124,12 @@ class MakePlugin extends Command
         $this->info("Created plugin [{$pluginId}] in [{$relativePath}].");
         $this->line('Next steps:');
         $this->line("  php artisan plugins:stage-directory {$relativePath}");
-        $this->line("  php artisan plugins:scan-install <review-id>");
-        $this->line("  php artisan plugins:approve-install <review-id> --trust");
-        $this->line("  php artisan plugins:discover");
+        $this->line('  php artisan plugins:scan-install <review-id>');
+        $this->line('  php artisan plugins:approve-install <review-id> --trust');
+        $this->line('  php artisan plugins:discover');
         if (! $this->option('bare')) {
             $this->line("  bash {$relativePath}/scripts/package-plugin.sh");
-            $this->line("  Publish the packaged zip with its SHA-256 checksum for reviewed GitHub installs.");
+            $this->line('  Publish the packaged zip with its SHA-256 checksum for reviewed GitHub installs.');
         }
 
         return self::SUCCESS;
@@ -406,5 +406,4 @@ PHP;
             ->values()
             ->all();
     }
-
 }

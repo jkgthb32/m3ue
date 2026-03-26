@@ -54,6 +54,7 @@ function createPluginZipArchive(string $sourcePath, string $archivePath): void
 
         if ($file->isDir()) {
             $zip->addEmptyDir($localName);
+
             continue;
         }
 

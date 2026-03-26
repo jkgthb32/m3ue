@@ -11,6 +11,8 @@ use App\Models\User;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
+use RuntimeException;
+use ZipArchive;
 
 beforeEach(function () {
     config()->set('plugins.clamav.driver', 'fake');
@@ -107,10 +109,10 @@ function createMissingManifestArchiveForExtensionsTests(): string
     File::ensureDirectoryExists($directory);
     File::delete($archivePath);
 
-    $zip = new \ZipArchive;
+    $zip = new ZipArchive;
     $opened = $zip->open($archivePath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
     if ($opened !== true) {
-        throw new \RuntimeException("Unable to create test archive [{$archivePath}].");
+        throw new RuntimeException("Unable to create test archive [{$archivePath}].");
     }
 
     $zip->addFromString('README.txt', 'No plugin manifest here.');

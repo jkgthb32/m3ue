@@ -1,24 +1,16 @@
 <?php
 
-use App\Enums\Status;
-use App\Models\Channel;
-use App\Models\Epg;
-use App\Models\EpgChannel;
+use App\Filament\Resources\ExtensionPlugins\Pages\ViewPluginRun;
+use App\Jobs\ExecutePluginInvocation;
 use App\Models\ExtensionPlugin;
 use App\Models\ExtensionPluginRun;
-use App\Models\ExtensionPluginRunLog;
-use App\Models\Playlist;
 use App\Models\PluginInstallReview;
 use App\Models\User;
-use App\Filament\Resources\ExtensionPlugins\Pages\ViewPluginRun;
 use App\Plugins\PluginManager;
-use App\Plugins\PluginSchemaMapper;
-use App\Jobs\ExecutePluginInvocation;
+use App\Plugins\PluginValidator;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
@@ -159,6 +151,7 @@ function createZipArchiveForTests(string $sourcePath, string $archivePath, array
 
         if ($file->isDir()) {
             $zip->addEmptyDir($localName);
+
             continue;
         }
 
@@ -334,12 +327,12 @@ it('cleans staged directory reviews when refresh fails after staging starts', fu
     $stagingDirectory = config('plugins.staging_directory');
     $stagingPattern = rtrim((string) $stagingDirectory, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.'review-*';
     $stagingDirectoriesBefore = File::glob($stagingPattern) ?: [];
-    $validator = Mockery::mock(\App\Plugins\PluginValidator::class);
+    $validator = Mockery::mock(PluginValidator::class);
     $validator->shouldReceive('validatePath')
         ->once()
         ->andThrow(new RuntimeException('validation exploded'));
 
-    app()->instance(\App\Plugins\PluginValidator::class, $validator);
+    app()->instance(PluginValidator::class, $validator);
     app()->forgetInstance(PluginManager::class);
 
     try {

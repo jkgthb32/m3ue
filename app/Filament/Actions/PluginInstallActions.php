@@ -3,6 +3,7 @@
 namespace App\Filament\Actions;
 
 use App\Filament\Resources\PluginInstallReviews\PluginInstallReviewResource;
+use App\Models\PluginInstallReview;
 use App\Plugins\PluginManager;
 use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
@@ -167,7 +168,7 @@ class PluginInstallActions
     /**
      * Execute a plugin staging action and convert staging failures into notifications.
      *
-     * @param  callable(): \App\Models\PluginInstallReview  $callback
+     * @param  callable(): PluginInstallReview  $callback
      */
     private static function runStagingAction(callable $callback, string $successTitle, string $failureTitle): void
     {

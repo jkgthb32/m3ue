@@ -2,9 +2,10 @@
 
 namespace App\Plugins;
 
+use App\Jobs\ExecutePluginInvocation;
 use App\Models\ExtensionPlugin;
-use App\Models\PluginInstallReview;
 use App\Models\ExtensionPluginRun;
+use App\Models\PluginInstallReview;
 use App\Models\User;
 use App\Plugins\Contracts\HookablePluginInterface;
 use App\Plugins\Contracts\LifecyclePluginInterface;
@@ -13,6 +14,7 @@ use App\Plugins\Contracts\ScheduledPluginInterface;
 use App\Plugins\Support\PluginActionResult;
 use App\Plugins\Support\PluginExecutionContext;
 use App\Plugins\Support\PluginUninstallContext;
+use App\Plugins\Support\PluginValidationResult;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
@@ -889,7 +891,7 @@ class PluginManager
             return $run->fresh();
         }
 
-        dispatch(new \App\Jobs\ExecutePluginInvocation(
+        dispatch(new ExecutePluginInvocation(
             pluginId: $plugin->id,
             invocationType: $run->invocation_type,
             name: $run->action ?? $run->hook ?? throw new RuntimeException('Run cannot be resumed without an action or hook name.'),
@@ -1671,6 +1673,7 @@ class PluginManager
             $destinationPath = $this->archiveDestinationPath($extractRoot, $normalizedPath);
             if (str_ends_with((string) $stat['name'], '/')) {
                 File::ensureDirectoryExists($destinationPath);
+
                 continue;
             }
 
@@ -1712,6 +1715,7 @@ class PluginManager
             $destinationPath = $this->archiveDestinationPath($extractRoot, $normalizedPath);
             if ($entry->isDir()) {
                 File::ensureDirectoryExists($destinationPath);
+
                 continue;
             }
 
@@ -1805,7 +1809,7 @@ class PluginManager
         return 'local_directory';
     }
 
-    private function determineSecurityState(ExtensionPlugin $existing, \App\Plugins\Support\PluginValidationResult $result, bool $available): array
+    private function determineSecurityState(ExtensionPlugin $existing, PluginValidationResult $result, bool $available): array
     {
         $currentHashes = $this->normalizeHashSnapshot($result->hashes);
         $trustedHashes = $this->normalizeHashSnapshot($existing->trusted_hashes ?? []);

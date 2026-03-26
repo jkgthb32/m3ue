@@ -124,6 +124,7 @@ class PluginSchemaManager
 
             if ($type === 'timestamps') {
                 $blueprint->timestamps();
+
                 continue;
             }
 

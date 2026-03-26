@@ -9,8 +9,8 @@ use App\Plugins\PluginManager;
 use App\Plugins\PluginSchemaMapper;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
-use Filament\Notifications\Notification;
 use Filament\Forms\Components\Select;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
 

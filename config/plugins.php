@@ -1,5 +1,10 @@
 <?php
 
+use App\Plugins\Contracts\ChannelProcessorPluginInterface;
+use App\Plugins\Contracts\EpgProcessorPluginInterface;
+use App\Plugins\Contracts\ScheduledPluginInterface;
+use App\Plugins\Contracts\StreamAnalysisPluginInterface;
+
 return [
     'api_version' => '1.0.0',
 
@@ -100,10 +105,10 @@ return [
     ],
 
     'capabilities' => [
-        'epg_processor' => \App\Plugins\Contracts\EpgProcessorPluginInterface::class,
-        'channel_processor' => \App\Plugins\Contracts\ChannelProcessorPluginInterface::class,
-        'stream_analysis' => \App\Plugins\Contracts\StreamAnalysisPluginInterface::class,
-        'scheduled' => \App\Plugins\Contracts\ScheduledPluginInterface::class,
+        'epg_processor' => EpgProcessorPluginInterface::class,
+        'channel_processor' => ChannelProcessorPluginInterface::class,
+        'stream_analysis' => StreamAnalysisPluginInterface::class,
+        'scheduled' => ScheduledPluginInterface::class,
     ],
 
     'hooks' => [

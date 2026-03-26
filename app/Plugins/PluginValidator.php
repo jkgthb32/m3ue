@@ -97,6 +97,7 @@ class PluginValidator
             $actionId = $action['id'] ?? null;
             if (blank($actionId)) {
                 $errors[] = 'Action missing required field [id]';
+
                 continue;
             }
 
@@ -184,11 +185,13 @@ class PluginValidator
 
             if ($id === T_NAMESPACE && $braceDepth === 0) {
                 [$namespace, $index] = $this->consumeNameStatement($tokens, $index + 1);
+
                 continue;
             }
 
             if ($id === T_USE && $braceDepth === 0 && $className === null) {
                 [$imports, $index] = $this->consumeUseStatements($tokens, $index + 1, $imports);
+
                 continue;
             }
 
@@ -235,6 +238,7 @@ class PluginValidator
 
             if (in_array($id, [T_NAMESPACE, T_USE, T_DECLARE], true)) {
                 $index = $this->skipStatement($tokens, $index + 1);
+
                 continue;
             }
 
@@ -336,11 +340,13 @@ class PluginValidator
 
             if ($token === '(') {
                 $depth++;
+
                 continue;
             }
 
             if ($token === ')') {
                 $depth = max(0, $depth - 1);
+
                 continue;
             }
 
@@ -370,6 +376,7 @@ class PluginValidator
                 }
 
                 $statement .= $token;
+
                 continue;
             }
 
@@ -437,6 +444,7 @@ class PluginValidator
 
             if ($token[0] === T_IMPLEMENTS) {
                 $collecting = true;
+
                 continue;
             }
 
@@ -579,11 +587,13 @@ class PluginValidator
             foreach ($ownership[$group] ?? [] as $path) {
                 if (Str::startsWith($path, '/') || Str::contains($path, ['..', '\\'])) {
                     $errors[] = "Declared {$group} path [{$path}] must stay inside approved storage roots.";
+
                     continue;
                 }
 
                 if (! collect($allowedRoots)->contains(fn (string $root) => Str::startsWith($path, $root.'/') || $path === $root)) {
                     $errors[] = "Declared {$group} path [{$path}] must start with one of: ".implode(', ', $allowedRoots);
+
                     continue;
                 }
 
@@ -608,6 +618,7 @@ class PluginValidator
 
             if ($tableName === '') {
                 $errors[] = 'Schema tables require [name].';
+
                 continue;
             }
 
@@ -625,6 +636,7 @@ class PluginValidator
 
                 if (! is_string($type) || ! in_array($type, $supportedColumnTypes, true)) {
                     $errors[] = "{$columnPath} uses unsupported type [{$type}]";
+
                     continue;
                 }
 
