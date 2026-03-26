@@ -25,13 +25,18 @@ ARG M3U_PROXY_LOCAL_DIR=""
 ########################################
 FROM composer:2 AS composer_builder
 WORKDIR /app
+ARG INSTALL_DEV_DEPENDENCIES=false
 
 # Copy composer metadata first for better layer caching
 COPY composer.json composer.lock ./
 
 # Install dependencies first (cached if composer files unchanged)
 # Some platform requirements (ext-intl, ext-pcntl) are provided by the runtime image
-RUN composer install --no-dev --no-interaction --no-progress -o --prefer-dist --ignore-platform-reqs --no-scripts --no-autoloader
+RUN if [ "${INSTALL_DEV_DEPENDENCIES}" = "true" ]; then \
+        composer install --no-interaction --no-progress -o --prefer-dist --ignore-platform-reqs --no-scripts --no-autoloader; \
+    else \
+        composer install --no-dev --no-interaction --no-progress -o --prefer-dist --ignore-platform-reqs --no-scripts --no-autoloader; \
+    fi
 
 # Copy application code for autoload generation
 COPY app/ ./app/
@@ -42,7 +47,11 @@ COPY routes/ ./routes/
 COPY artisan ./
 
 # Generate optimized autoloader
-RUN composer dump-autoload --no-dev --optimize --classmap-authoritative
+RUN if [ "${INSTALL_DEV_DEPENDENCIES}" = "true" ]; then \
+        composer dump-autoload --optimize; \
+    else \
+        composer dump-autoload --no-dev --optimize --classmap-authoritative; \
+    fi
 
 ########################################
 # Stage 2: Node builder - builds frontend assets
@@ -245,6 +254,7 @@ COPY --chown=root:root ./docker/8.4/www.conf /etc/php84/php-fpm.d/www.tmpl
 
 # Copy container startup script
 COPY --chmod=755 start-container /usr/local/bin/start-container
+COPY --chmod=755 docker/run-tests /usr/local/bin/run-tests
 
 # Copy m3u-proxy from builder stage
 COPY --from=proxy_builder --chown=${WWWUSER}:${WWWGROUP} /opt/m3u-proxy /opt/m3u-proxy
