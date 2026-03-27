@@ -34,7 +34,7 @@ it('creates admin via factory state', function () {
 // --- Admin status independent of email ---
 
 it('remains admin after email change', function () {
-    $admin = User::factory()->admin()->create(['email' => 'admin@test.com']);
+    $admin = User::factory()->admin()->create(['email' => 'original@example.com']);
 
     $admin->update(['email' => 'newemail@example.com']);
 
@@ -42,7 +42,8 @@ it('remains admin after email change', function () {
 });
 
 it('remains non-admin regardless of email', function () {
-    $user = User::factory()->create(['email' => 'admin@test.com']);
+    // Even if the email matches the seeded admin email, is_admin column is what matters
+    $user = User::factory()->create(['email' => 'looks-like-admin@example.com']);
 
     expect($user->isAdmin())->toBeFalse();
 });

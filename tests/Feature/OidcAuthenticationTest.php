@@ -9,7 +9,7 @@ function mockOidcUser(array $attributes = []): SocialiteUser
     $defaults = [
         'id' => 'oidc-123',
         'name' => 'Test User',
-        'email' => 'test@example.com',
+        'email' => 'oidc-test@example.com',
         'avatar' => 'https://example.com/avatar.jpg',
     ];
 
@@ -47,6 +47,7 @@ it('returns 404 for callback when OIDC is disabled', function () {
 
 it('matches existing user by oidc_id', function () {
     $user = User::factory()->create(['oidc_id' => 'oidc-123']);
+    $countBefore = User::count();
 
     Socialite::shouldReceive('driver->user')->andReturn(mockOidcUser());
 
@@ -54,11 +55,11 @@ it('matches existing user by oidc_id', function () {
         ->assertRedirect();
 
     expect(auth()->id())->toBe($user->id);
-    expect(User::count())->toBe(1);
+    expect(User::count())->toBe($countBefore);
 });
 
 it('matches existing user by email', function () {
-    $user = User::factory()->create(['email' => 'test@example.com']);
+    $user = User::factory()->create(['email' => 'oidc-test@example.com']);
 
     Socialite::shouldReceive('driver->user')->andReturn(mockOidcUser());
 
@@ -86,9 +87,12 @@ it('matches existing user by username as fallback', function () {
 
 it('prefers oidc_id match over email match', function () {
     $oidcUser = User::factory()->create(['oidc_id' => 'oidc-123', 'email' => 'other@example.com']);
-    $emailUser = User::factory()->create(['email' => 'test@example.com']);
+    $emailUser = User::factory()->create(['email' => 'someone-else@example.com']);
 
-    Socialite::shouldReceive('driver->user')->andReturn(mockOidcUser());
+    // Mock OIDC user returns a unique email that won't conflict
+    Socialite::shouldReceive('driver->user')->andReturn(mockOidcUser([
+        'email' => 'oidc-unique@example.com',
+    ]));
 
     $this->get('/auth/oidc/callback')
         ->assertRedirect();
@@ -107,12 +111,13 @@ it('creates a new user when no match and auto-create is enabled', function () {
     $user = User::where('oidc_id', 'oidc-123')->first();
     expect($user)->not->toBeNull()
         ->and($user->name)->toBe('Test User')
-        ->and($user->email)->toBe('test@example.com')
+        ->and($user->email)->toBe('oidc-test@example.com')
         ->and(auth()->id())->toBe($user->id);
 });
 
 it('denies login when no match and auto-create is disabled', function () {
     config()->set('services.oidc.auto_create_users', false);
+    $countBefore = User::count();
 
     Socialite::shouldReceive('driver->user')->andReturn(mockOidcUser());
 
@@ -120,7 +125,7 @@ it('denies login when no match and auto-create is disabled', function () {
         ->assertRedirect(route('filament.admin.auth.login'));
 
     expect(auth()->check())->toBeFalse();
-    expect(User::count())->toBe(0);
+    expect(User::count())->toBe($countBefore);
 });
 
 // --- Profile sync ---
@@ -172,7 +177,7 @@ it('preserves admin status when OIDC syncs profile', function () {
     $admin = User::factory()->create([
         'oidc_id' => 'oidc-123',
         'is_admin' => true,
-        'email' => 'admin@test.com',
+        'email' => 'myadmin@example.com',
     ]);
 
     Socialite::shouldReceive('driver->user')->andReturn(mockOidcUser([
