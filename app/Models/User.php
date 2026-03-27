@@ -46,6 +46,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
             'app_authentication_recovery_codes' => 'encrypted:array',
             'permissions' => 'array',
             'must_change_password' => 'boolean',
+            'is_admin' => 'boolean',
         ];
     }
 
@@ -184,7 +185,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
      */
     public function isAdmin(): bool
     {
-        return in_array($this->email, config('dev.admin_emails', []));
+        return $this->is_admin;
     }
 
     /**

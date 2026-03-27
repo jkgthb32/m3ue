@@ -379,10 +379,10 @@ class AppServiceProvider extends ServiceProvider
     {
         // Allow only the admin to download and delete backups
         Gate::define('download-backup', function (User $user) {
-            return in_array($user->email, config('dev.admin_emails'), true);
+            return $user->isAdmin();
         });
         Gate::define('delete-backup', function (User $user) {
-            return in_array($user->email, config('dev.admin_emails'), true);
+            return $user->isAdmin();
         });
     }
 
@@ -727,11 +727,7 @@ class AppServiceProvider extends ServiceProvider
 
             // Auto-create Admin PlaylistViewer on new playlist/alias creation
             $autoCreateAdminViewer = function ($record) {
-                $adminEmail = config('dev.admin_emails')[0] ?? null;
-                if (! $adminEmail) {
-                    return;
-                }
-                $adminUser = User::where('email', $adminEmail)->first();
+                $adminUser = User::where('is_admin', true)->first();
                 if (! $adminUser) {
                     return;
                 }
@@ -790,7 +786,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Allow access to api docs
         Gate::define('viewApiDocs', function (User $user) use ($showApiDocs) {
-            return $showApiDocs && in_array($user->email, config('dev.admin_emails'), true);
+            return $showApiDocs && $user->isAdmin();
         });
 
         // Configure the API

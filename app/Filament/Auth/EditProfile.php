@@ -32,8 +32,7 @@ class EditProfile extends \Filament\Auth\Pages\EditProfile
                         //     ->avatar(),
                         // TextInput::make('username')->required()->maxLength(255),
                         $this->getNameFormComponent(),
-
-                        // $this->getEmailFormComponent(),
+                        $this->getEmailFormComponent(),
                         $this->getPasswordFormComponent()
                             ->helperText('Leave blank to keep the current password')
                             ->rules([
