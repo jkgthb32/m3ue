@@ -1,4 +1,4 @@
-<div class="mt-4">
+<div @class(['mt-4' => !config('services.oidc.hide_login_form')])>
     @unless(config('services.oidc.hide_login_form'))
         <div class="relative flex items-center justify-center">
             <div class="absolute inset-0 flex items-center">

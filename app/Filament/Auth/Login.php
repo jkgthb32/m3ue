@@ -5,6 +5,7 @@ namespace App\Filament\Auth;
 use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Group;
 use Filament\Schemas\Schema;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\HtmlString;
@@ -61,6 +62,16 @@ class Login extends \Filament\Auth\Pages\Login
         }
 
         return parent::getFormActions();
+    }
+
+    public function getFormContentComponent(): Component
+    {
+        if (config('services.oidc.enabled') && config('services.oidc.hide_login_form')) {
+            return Group::make([])
+                ->visible(false);
+        }
+
+        return parent::getFormContentComponent();
     }
 
     /**
