@@ -11,10 +11,7 @@ return [
     'discord_url' => 'https://discord.gg/rS3abJ5dz7',
     'paypal' => 'https://www.paypal.com/donate/?hosted_button_id=ULJRPVWJNBSSG',
     'kofi' => 'https://ko-fi.com/sparkison',
-    'admin_emails' => array_filter(array_merge(
-        ['admin@test.com'],
-        array_map('trim', explode(',', env('OIDC_ADMIN_EMAIL', ''))),
-    )),
+    'admin_emails' => ['admin@test.com'],
     'tvgid' => [
         'regex' => env('TVGID_REGEX', '/[^a-zA-Z0-9_\-\.]/'),
     ],
