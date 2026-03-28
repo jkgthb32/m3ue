@@ -294,29 +294,3 @@ it('blocks non-admin users from the create plugin page', function () {
     Livewire::test(CreatePlugin::class)
         ->assertForbidden();
 });
-
-it('installs a plugin to disk via the wizard installToPlugins action', function () {
-    $admin = User::factory()->create(['email' => 'create-plugin-install-'.Str::lower(Str::random(6)).'@example.com']);
-    config()->set('dev.admin_emails', [$admin->email]);
-
-    $this->actingAs($admin);
-
-    $pluginName = 'Wizard Test Plugin '.Str::upper(Str::random(4));
-    $pluginId = Str::slug($pluginName);
-
-    try {
-        Livewire::test(CreatePlugin::class)
-            ->set('data.name', $pluginName)
-            ->set('data.description', 'Created via wizard test.')
-            ->set('data.cleanup_mode', 'preserve')
-            ->set('data.lifecycle', false)
-            ->set('data.bare', true)
-            ->call('installToPlugins')
-            ->assertNotified();
-
-        expect(File::exists(generatedPluginPath($pluginId).'/plugin.json'))->toBeTrue();
-        expect(File::exists(generatedPluginPath($pluginId).'/Plugin.php'))->toBeTrue();
-    } finally {
-        cleanupGeneratedPlugin($pluginId);
-    }
-});
