@@ -2,7 +2,6 @@
 
 namespace App\Filament\Pages;
 
-use App\Plugins\PluginManager;
 use App\Services\PluginScaffoldService;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Placeholder;
@@ -152,9 +151,6 @@ class CreatePlugin extends Page
                     ->columnSpanFull()
                     ->submitAction(new HtmlString(Blade::render(<<<'BLADE'
                         <div class="flex gap-3">
-                            <x-filament::button wire:click="installToPlugins" color="primary" icon="heroicon-o-folder-plus">
-                                Install to plugins
-                            </x-filament::button>
                             <x-filament::button wire:click="downloadZip" color="gray" icon="heroicon-o-arrow-down-tray">
                                 Download as ZIP
                             </x-filament::button>
@@ -162,66 +158,6 @@ class CreatePlugin extends Page
                     BLADE))),
             ])
             ->statePath('data');
-    }
-
-    /**
-     * Write the scaffold directly to the plugins/ directory, then run it
-     * through the install review pipeline so trust can be granted immediately.
-     */
-    public function installToPlugins(): void
-    {
-        $this->form->validate();
-        $data = $this->form->getState();
-        $scaffoldService = app(PluginScaffoldService::class);
-        $pluginManager = app(PluginManager::class);
-        $pluginRoot = collect(config('plugins.directories', [base_path('plugins')]))->first() ?: base_path('plugins');
-
-        try {
-            $pluginPath = $scaffoldService->scaffoldToDirectory(
-                targetDirectory: $pluginRoot,
-                name: $data['name'],
-                description: $data['description'] ?? '',
-                capabilities: $data['capabilities'] ?? [],
-                hooks: $data['hooks'] ?? [],
-                cleanupMode: $data['cleanup_mode'] ?? 'preserve',
-                lifecycle: (bool) ($data['lifecycle'] ?? false),
-                bare: (bool) ($data['bare'] ?? false),
-                force: false,
-            );
-
-            $pluginId = $scaffoldService->derivePluginId($data['name']);
-
-            // Stage → scan → approve the review so the plugin can be trusted
-            // without a manual install review step.
-            $review = $pluginManager->stageDirectoryReview($pluginPath, auth()->id());
-            $review = $pluginManager->scanInstallReview($review);
-            $pluginManager->approveInstallReview($review, false, auth()->id());
-
-            // Register the plugin in the database.
-            $pluginManager->discover();
-
-            Notification::make()
-                ->success()
-                ->title('Plugin created and ready')
-                ->body("Plugin [{$pluginId}] has been installed and reviewed. Go to Plugins, then trust and enable it to start using it.")
-                ->persistent()
-                ->send();
-
-        } catch (InvalidArgumentException $e) {
-            Notification::make()
-                ->danger()
-                ->title('Plugin creation failed')
-                ->body($e->getMessage())
-                ->persistent()
-                ->send();
-        } catch (\RuntimeException $e) {
-            Notification::make()
-                ->danger()
-                ->title('Plugin install review failed')
-                ->body($e->getMessage())
-                ->persistent()
-                ->send();
-        }
     }
 
     /**
