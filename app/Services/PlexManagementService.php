@@ -185,63 +185,290 @@ class PlexManagementService
     }
 
     /**
+     * Get all grabber devices registered in Plex.
+     *
+     * @return array{success: bool, data?: array, message?: string}
+     */
+    public function getDevices(): array
+    {
+        try {
+            $response = $this->client()->get('/media/grabbers/devices');
+
+            if (! $response->successful()) {
+                return ['success' => false, 'message' => 'Failed to fetch devices: '.$response->status()];
+            }
+
+            return ['success' => true, 'data' => $response->json('MediaContainer.Device', [])];
+        } catch (Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Try to create a grabber device in Plex using multiple API variations.
+     *
+     * Plex accepts different methods/params depending on version. We try all known
+     * variations (mirroring Headendarr's try_create_device approach).
+     *
+     * @param  array{DeviceID?: string, DeviceAuth?: string}  $discoverPayload
+     */
+    protected function tryCreateDevice(string $hdhrBaseUrl, array $discoverPayload = []): bool
+    {
+        $candidates = [
+            ['POST', '/media/grabbers/devices', ['uri' => $hdhrBaseUrl]],
+            ['PUT', '/media/grabbers/devices', ['uri' => $hdhrBaseUrl]],
+            ['POST', '/media/grabbers/devices', ['url' => $hdhrBaseUrl]],
+            ['POST', '/media/grabbers/devices', [
+                'uri' => $hdhrBaseUrl,
+                'deviceId' => $discoverPayload['DeviceID'] ?? '',
+                'deviceAuth' => $discoverPayload['DeviceAuth'] ?? '',
+            ]],
+        ];
+
+        foreach ($candidates as [$method, $path, $query]) {
+            try {
+                $url = $path.'?'.http_build_query($query);
+                $response = match ($method) {
+                    'PUT' => $this->client()->withBody('')->put($url),
+                    default => $this->client()->withBody('')->post($url),
+                };
+
+                if ($response->successful()) {
+                    return true;
+                }
+
+                Log::debug('PlexManagementService: Device create attempt failed', [
+                    'method' => $method,
+                    'path' => $path,
+                    'query' => $query,
+                    'status' => $response->status(),
+                ]);
+            } catch (Exception $e) {
+                Log::debug('PlexManagementService: Device create attempt exception', [
+                    'method' => $method,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Find a device in the device list matching the given URI.
+     *
+     * @param  array  $devices  List of Plex device arrays
+     */
+    protected function findDeviceByUri(array $devices, string $expectedUri): ?array
+    {
+        foreach ($devices as $device) {
+            if (! is_array($device)) {
+                continue;
+            }
+            $uri = trim($device['uri'] ?? '');
+            if ($uri === $expectedUri) {
+                return $device;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Collect all devices from both /media/grabbers/devices and DVR device lists.
+     *
+     * @param  array  $grabberDevices  Devices from GET /media/grabbers/devices
+     * @param  array  $dvrs  DVRs from GET /livetv/dvrs
+     */
+    protected function flattenAllDevices(array $grabberDevices, array $dvrs): array
+    {
+        $devices = [];
+        $seen = [];
+
+        foreach ($grabberDevices as $device) {
+            if (! is_array($device)) {
+                continue;
+            }
+            $key = $device['key'] ?? '';
+            if ($key && ! isset($seen[$key])) {
+                $devices[] = $device;
+                $seen[$key] = true;
+            }
+        }
+
+        foreach ($dvrs as $dvr) {
+            if (! is_array($dvr)) {
+                continue;
+            }
+            $dvrKey = $dvr['key'] ?? '';
+            foreach ($dvr['Device'] ?? [] as $device) {
+                if (! is_array($device)) {
+                    continue;
+                }
+                $key = $device['key'] ?? '';
+                if ($key && ! isset($seen[$key])) {
+                    if (! isset($device['parentID']) && $dvrKey) {
+                        $device['parentID'] = $dvrKey;
+                    }
+                    $devices[] = $device;
+                    $seen[$key] = true;
+                }
+            }
+        }
+
+        return $devices;
+    }
+
+    /**
+     * Build a Plex XMLTV lineup ID from an EPG URL and guide title.
+     */
+    protected function buildLineupId(string $epgUrl, string $guideTitle = 'm3u-editor XMLTV Guide'): string
+    {
+        return 'lineup://tv.plex.providers.epg.xmltv/'.rawurlencode($epgUrl).'#'.rawurlencode($guideTitle);
+    }
+
+    /**
      * Register an m3u-editor playlist's HDHR endpoint as a DVR tuner in Plex.
      *
-     * Plex DVR setup flow:
-     * 1. Plex probes the HDHR device at {hdhrBaseUrl}/discover.json
-     * 2. POST /livetv/dvrs with the device URI as a query parameter
-     * 3. Configure the XMLTV guide source for the DVR
+     * Follows the correct Plex DVR API flow (as implemented by Headendarr):
+     * 1. Fetch discover.json from the HDHR endpoint to get device info
+     * 2. Create the device in Plex via POST /media/grabbers/devices
+     * 3. Find the created device by URI
+     * 4. Create a DVR entry linking device + XMLTV lineup
+     * 5. Attach device to DVR and store DVR ID
      *
      * @param  string  $hdhrBaseUrl  The HDHR base URL reachable by Plex (e.g., http://192.168.1.x:36400/{uuid}/hdhr)
      * @param  string  $epgUrl  The EPG XML URL reachable by Plex
+     * @param  string  $country  Country code for DVR (default: de)
+     * @param  string  $language  Language code for DVR (default: de)
      */
-    public function addDvrDevice(string $hdhrBaseUrl, string $epgUrl): array
+    public function addDvrDevice(string $hdhrBaseUrl, string $epgUrl, string $country = 'de', string $language = 'de'): array
     {
         try {
-            // Step 1: Verify Plex can reach the HDHR device
-            $verifyResponse = Http::timeout(10)->get($hdhrBaseUrl.'/discover.json');
-            if (! $verifyResponse->successful()) {
+            // Step 1: Fetch discover.json to get device info (DeviceID, DeviceAuth, etc.)
+            // The hdhrBaseUrl is the external URL for Plex. We build a local URL
+            // to fetch discover.json from ourselves since we host the HDHR endpoint.
+            $parsedHdhr = parse_url($hdhrBaseUrl);
+            $hdhrPath = $parsedHdhr['path'] ?? '';
+            $appPort = config('app.port', 36400);
+            $localDiscoverUrl = "http://localhost:{$appPort}".rtrim($hdhrPath, '/').'/discover.json';
+
+            $discoverResponse = Http::timeout(10)->get($localDiscoverUrl);
+            if (! $discoverResponse->successful()) {
                 return [
                     'success' => false,
-                    'message' => 'Cannot reach HDHR device at '.$hdhrBaseUrl.'/discover.json — Plex needs to access this URL. Check your network/APP_URL configuration.',
+                    'message' => "Could not reach HDHR discover.json (HTTP {$discoverResponse->status()}). Ensure the HDHR endpoint is available.",
                 ];
             }
+            $discoverPayload = $discoverResponse->json() ?? [];
 
-            // Step 2: Tell Plex to add the HDHR device as a DVR tuner
-            $discoverResponse = $this->client()->post('/livetv/dvrs?uri='.urlencode($hdhrBaseUrl));
-
-            if (! $discoverResponse->successful()) {
-                $body = $discoverResponse->body();
-                Log::warning('PlexManagementService: DVR registration failed', [
+            // Step 2: Create the device in Plex
+            $created = $this->tryCreateDevice($hdhrBaseUrl, $discoverPayload);
+            if (! $created) {
+                Log::warning('PlexManagementService: All device creation attempts failed', [
                     'integration_id' => $this->integration->id,
                     'hdhr_url' => $hdhrBaseUrl,
-                    'status' => $discoverResponse->status(),
-                    'response' => $body,
                 ]);
 
                 return [
                     'success' => false,
-                    'message' => 'Plex rejected the DVR registration (HTTP '.$discoverResponse->status().'). Ensure the HDHR URL is reachable from Plex and returns valid discover.json/lineup.json responses.',
+                    'message' => 'Plex rejected the device creation. Ensure the HDHR URL is reachable from Plex and returns valid discover.json/lineup.json.',
                 ];
             }
 
-            $dvrData = $discoverResponse->json('MediaContainer.Dvr.0', []);
-            $dvrId = $dvrData['key'] ?? null;
+            // Step 3: Find the created device by URI
+            $devicesResult = $this->getDevices();
+            $dvrsResult = $this->getDvrs();
 
-            // Step 3: If we got a DVR ID, configure XMLTV guide
-            if ($dvrId && $epgUrl) {
-                $this->configureGuide($dvrId, $epgUrl);
+            $grabberDevices = $devicesResult['success'] ? ($devicesResult['data'] ?? []) : [];
+            $dvrList = $dvrsResult['success'] ? ($dvrsResult['data'] ?? []) : [];
+
+            // For flattenAllDevices we need raw DVR data, re-fetch
+            $rawDvrs = [];
+            if ($dvrsResult['success']) {
+                $rawDvrsResponse = $this->client()->get('/livetv/dvrs');
+                $rawDvrs = $rawDvrsResponse->json('MediaContainer.Dvr', []);
             }
 
-            // Store the DVR ID on the integration
-            if ($dvrId) {
-                $this->integration->update(['plex_dvr_id' => $dvrId]);
+            $allDevices = $this->flattenAllDevices($grabberDevices, $rawDvrs);
+            $targetDevice = $this->findDeviceByUri($allDevices, $hdhrBaseUrl);
+
+            if (! $targetDevice) {
+                return [
+                    'success' => false,
+                    'message' => 'Device was created but could not be found in Plex. Try again or check Plex logs.',
+                ];
+            }
+
+            $deviceKey = $targetDevice['key'] ?? null;
+            $deviceUuid = $targetDevice['uuid'] ?? null;
+
+            if (! $deviceKey || ! $deviceUuid) {
+                return [
+                    'success' => false,
+                    'message' => 'Device found but missing key/uuid. Plex may need a restart.',
+                ];
+            }
+
+            // Step 4: Check for existing DVR or create a new one
+            $dvrKey = $targetDevice['parentID'] ?? null;
+
+            if (! $dvrKey) {
+                // No existing DVR — create one
+                $lineupId = $this->buildLineupId($epgUrl);
+                $createDvrResponse = $this->client()->withBody('')->post('/livetv/dvrs?'.http_build_query([
+                    'device' => $deviceUuid,
+                    'lineup' => $lineupId,
+                    'lineupTitle' => 'm3u-editor XMLTV Guide',
+                    'country' => $country,
+                    'language' => $language,
+                ]));
+
+                if (! $createDvrResponse->successful()) {
+                    Log::warning('PlexManagementService: DVR creation failed', [
+                        'integration_id' => $this->integration->id,
+                        'status' => $createDvrResponse->status(),
+                        'response' => $createDvrResponse->body(),
+                    ]);
+
+                    return [
+                        'success' => false,
+                        'message' => 'Device registered but DVR creation failed (HTTP '.$createDvrResponse->status().').',
+                    ];
+                }
+
+                // Re-fetch DVRs to find the new DVR key
+                $dvrsRefresh = $this->client()->get('/livetv/dvrs');
+                $freshDvrs = $dvrsRefresh->json('MediaContainer.Dvr', []);
+                foreach ($freshDvrs as $dvr) {
+                    foreach ($dvr['Device'] ?? [] as $dvrDevice) {
+                        if (($dvrDevice['uuid'] ?? '') === $deviceUuid || ($dvrDevice['key'] ?? '') === $deviceKey) {
+                            $dvrKey = $dvr['key'] ?? null;
+                            break 2;
+                        }
+                    }
+                }
+
+                // If still no DVR key, use the first DVR
+                if (! $dvrKey && ! empty($freshDvrs)) {
+                    $dvrKey = $freshDvrs[0]['key'] ?? null;
+                }
+            }
+
+            // Step 5: Attach device to DVR (if not already attached)
+            if ($dvrKey && $deviceKey && ! ($targetDevice['parentID'] ?? null)) {
+                $this->client()->withBody('')->put("/livetv/dvrs/{$dvrKey}/devices/{$deviceKey}");
+            }
+
+            // Store the DVR ID
+            if ($dvrKey) {
+                $this->integration->update(['plex_dvr_id' => $dvrKey]);
             }
 
             return [
                 'success' => true,
-                'message' => 'HDHR device registered in Plex as DVR tuner'.($dvrId ? ' (DVR ID: '.$dvrId.')' : ''),
-                'dvr_id' => $dvrId,
+                'message' => 'HDHR device registered and DVR configured in Plex'.($dvrKey ? " (DVR ID: {$dvrKey})" : ''),
+                'dvr_id' => $dvrKey,
             ];
         } catch (Exception $e) {
             Log::error('PlexManagementService: Failed to add DVR device', [
@@ -260,7 +487,11 @@ class PlexManagementService
     public function configureGuide(string $dvrId, string $epgUrl): array
     {
         try {
-            $response = $this->client()->put("/livetv/dvrs/{$dvrId}?lineup=".urlencode($epgUrl).'&lineupType=xmltv');
+            $lineupId = $this->buildLineupId($epgUrl);
+            $response = $this->client()->withBody('')->put("/livetv/dvrs/{$dvrId}?".http_build_query([
+                'lineup' => $lineupId,
+                'lineupTitle' => 'm3u-editor XMLTV Guide',
+            ]));
 
             return [
                 'success' => $response->successful(),

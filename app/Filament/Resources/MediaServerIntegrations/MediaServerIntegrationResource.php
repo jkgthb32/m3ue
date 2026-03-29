@@ -7,7 +7,9 @@ use App\Filament\Resources\MediaServerIntegrations\Pages\EditMediaServerIntegrat
 use App\Filament\Resources\MediaServerIntegrations\Pages\ListMediaServerIntegrations;
 use App\Filament\Resources\Playlists\PlaylistResource;
 use App\Jobs\SyncMediaServer;
+use App\Models\CustomPlaylist;
 use App\Models\MediaServerIntegration;
+use App\Models\MergedPlaylist;
 use App\Models\Playlist;
 use App\Models\Season;
 use App\Models\Series;
@@ -38,6 +40,7 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Filament\Tables;
@@ -77,6 +80,23 @@ class MediaServerIntegrationResource extends Resource
     public static function canAccess(): bool
     {
         return auth()->check() && auth()->user()->canUseIntegrations();
+    }
+
+    /**
+     * Build the external base URL for HDHR/EPG endpoints.
+     * Handles APP_URL values with or without a scheme.
+     */
+    protected static function buildHdhrBaseUrl(): string
+    {
+        $appUrl = rtrim(config('app.url'), '/');
+        if (! parse_url($appUrl, PHP_URL_SCHEME)) {
+            $appUrl = 'http://'.$appUrl;
+        }
+        $scheme = parse_url($appUrl, PHP_URL_SCHEME) ?: 'http';
+        $host = parse_url($appUrl, PHP_URL_HOST) ?: 'localhost';
+        $port = parse_url($appUrl, PHP_URL_PORT) ?: config('app.port', 36400);
+
+        return "{$scheme}://{$host}:{$port}";
     }
 
     public static function getRecordTitle(?Model $record): string|null|Htmlable
@@ -638,6 +658,36 @@ class MediaServerIntegrationResource extends Resource
                                         ->modalHeading('Register HDHomeRun Tuner')
                                         ->modalDescription('This will register the playlist\'s HDHR endpoint as a DVR tuner in Plex and configure the EPG guide. The HDHR URL must be reachable from your Plex server.')
                                         ->form([
+                                            Select::make('playlist_uuid')
+                                                ->label('Playlist')
+                                                ->helperText('Select the playlist to use for HDHR/EPG endpoints.')
+                                                ->options(function () {
+                                                    $userId = Auth::id();
+                                                    $options = [];
+                                                    foreach (Playlist::where('user_id', $userId)->get() as $p) {
+                                                        $options[$p->uuid] = "{$p->name} (Playlist)";
+                                                    }
+                                                    foreach (CustomPlaylist::where('user_id', $userId)->get() as $p) {
+                                                        $options[$p->uuid] = "{$p->name} (Custom)";
+                                                    }
+                                                    foreach (MergedPlaylist::where('user_id', $userId)->get() as $p) {
+                                                        $options[$p->uuid] = "{$p->name} (Merged)";
+                                                    }
+
+                                                    return $options;
+                                                })
+                                                ->default(fn ($record) => $record->playlist?->uuid)
+                                                ->searchable()
+                                                ->live()
+                                                ->afterStateUpdated(function (Set $set, ?string $state): void {
+                                                    if (! $state) {
+                                                        return;
+                                                    }
+                                                    $baseUrl = self::buildHdhrBaseUrl();
+                                                    $set('hdhr_base_url', "{$baseUrl}/{$state}/hdhr");
+                                                    $set('epg_url', "{$baseUrl}/{$state}/epg.xml");
+                                                })
+                                                ->required(),
                                             TextInput::make('hdhr_base_url')
                                                 ->label('HDHR Base URL')
                                                 ->helperText('This URL must be reachable from your Plex server. Use your machine\'s LAN IP, not localhost.')
@@ -646,12 +696,8 @@ class MediaServerIntegrationResource extends Resource
                                                     if (! $playlist) {
                                                         return '';
                                                     }
-                                                    $appUrl = config('app.url');
-                                                    $port = parse_url($appUrl, PHP_URL_PORT) ?: config('app.port', 36400);
-                                                    $plexHost = $record->host;
-                                                    $scheme = parse_url($appUrl, PHP_URL_SCHEME) ?: 'http';
 
-                                                    return "{$scheme}://{$plexHost}:{$port}/{$playlist->uuid}/hdhr";
+                                                    return self::buildHdhrBaseUrl()."/{$playlist->uuid}/hdhr";
                                                 })
                                                 ->required(),
                                             TextInput::make('epg_url')
@@ -662,23 +708,31 @@ class MediaServerIntegrationResource extends Resource
                                                     if (! $playlist) {
                                                         return '';
                                                     }
-                                                    $appUrl = config('app.url');
-                                                    $port = parse_url($appUrl, PHP_URL_PORT) ?: config('app.port', 36400);
-                                                    $plexHost = $record->host;
-                                                    $scheme = parse_url($appUrl, PHP_URL_SCHEME) ?: 'http';
 
-                                                    return "{$scheme}://{$plexHost}:{$port}/{$playlist->uuid}/epg.xml";
+                                                    return self::buildHdhrBaseUrl()."/{$playlist->uuid}/epg.xml";
                                                 })
+                                                ->required(),
+                                            TextInput::make('dvr_country')
+                                                ->label('Country Code')
+                                                ->helperText('ISO country code for the DVR guide (e.g. de, us, gb).')
+                                                ->default('de')
+                                                ->maxLength(5)
+                                                ->required(),
+                                            TextInput::make('dvr_language')
+                                                ->label('Language Code')
+                                                ->helperText('ISO language code for the DVR guide (e.g. de, en, fr).')
+                                                ->default('de')
+                                                ->maxLength(5)
                                                 ->required(),
                                         ])
                                         ->action(function ($record, array $data) {
-                                            if (! $record->playlist_id) {
-                                                Notification::make()->danger()->title('No Playlist')->body('Sync the media server first to create a playlist.')->persistent()->send();
-
-                                                return;
-                                            }
                                             $service = PlexManagementService::make($record);
-                                            $result = $service->addDvrDevice($data['hdhr_base_url'], $data['epg_url']);
+                                            $result = $service->addDvrDevice(
+                                                $data['hdhr_base_url'],
+                                                $data['epg_url'],
+                                                $data['dvr_country'],
+                                                $data['dvr_language'],
+                                            );
                                             if ($result['success']) {
                                                 Notification::make()->success()->title('DVR Registered')->body($result['message'])->persistent()->send();
                                             } else {
@@ -708,14 +762,36 @@ class MediaServerIntegrationResource extends Resource
                                     Action::make('refreshDvrGuide')
                                         ->label('Refresh EPG Guide')
                                         ->icon('heroicon-o-arrow-path')
-                                        ->action(function ($record) {
-                                            if (! $record->plex_dvr_id || ! $record->playlist_id) {
+                                        ->form([
+                                            Select::make('epg_playlist_uuid')
+                                                ->label('Playlist')
+                                                ->helperText('Select the playlist whose EPG to use.')
+                                                ->options(function () {
+                                                    $userId = Auth::id();
+                                                    $options = [];
+                                                    foreach (Playlist::where('user_id', $userId)->get() as $p) {
+                                                        $options[$p->uuid] = "{$p->name} (Playlist)";
+                                                    }
+                                                    foreach (CustomPlaylist::where('user_id', $userId)->get() as $p) {
+                                                        $options[$p->uuid] = "{$p->name} (Custom)";
+                                                    }
+                                                    foreach (MergedPlaylist::where('user_id', $userId)->get() as $p) {
+                                                        $options[$p->uuid] = "{$p->name} (Merged)";
+                                                    }
+
+                                                    return $options;
+                                                })
+                                                ->default(fn ($record) => $record->playlist?->uuid)
+                                                ->searchable()
+                                                ->required(),
+                                        ])
+                                        ->action(function ($record, array $data) {
+                                            if (! $record->plex_dvr_id) {
                                                 Notification::make()->warning()->title('Not Configured')->body('Register a DVR tuner first.')->persistent()->send();
 
                                                 return;
                                             }
-                                            $playlist = $record->playlist;
-                                            $epgUrl = url($playlist->uuid.'/epg.xml');
+                                            $epgUrl = self::buildHdhrBaseUrl()."/{$data['epg_playlist_uuid']}/epg.xml";
                                             $service = PlexManagementService::make($record);
                                             $result = $service->configureGuide($record->plex_dvr_id, $epgUrl);
                                             if ($result['success']) {

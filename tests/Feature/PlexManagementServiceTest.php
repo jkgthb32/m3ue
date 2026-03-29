@@ -143,24 +143,83 @@ it('can get DVR configurations', function () {
 });
 
 it('can register a DVR device', function () {
-    Http::fake([
-        'http://m3u-editor/hdhr/discover.json' => Http::response([
-            'FriendlyName' => 'm3u-editor',
-            'ModelNumber' => 'HDHR5-4K',
-            'DeviceID' => 'test-device',
-        ]),
-        'plex.example.com:32400/livetv/dvrs*' => Http::response([
-            'MediaContainer' => [
-                'Dvr' => [
-                    [
-                        'key' => '42',
-                        'uuid' => 'new-dvr-uuid',
+    $devicesCallCount = 0;
+    $dvrsCallCount = 0;
+
+    Http::fake(function ($request) use (&$devicesCallCount, &$dvrsCallCount) {
+        $url = $request->url();
+
+        // Step 1: discover.json fetched via local app URL
+        if (str_contains($url, '/hdhr/discover.json')) {
+            return Http::response([
+                'DeviceID' => 'hdhr-device-123',
+                'DeviceAuth' => 'auth-abc',
+                'FriendlyName' => 'm3u-editor HDHR',
+                'ModelNumber' => 'HDHR5-4K',
+            ]);
+        }
+
+        // Step 2: Create device in Plex (POST/PUT to /media/grabbers/devices with query params)
+        if (str_contains($url, '/media/grabbers/devices') && str_contains($url, 'uri=')) {
+            return Http::response([], 200);
+        }
+
+        // Step 3: GET /media/grabbers/devices (no query params)
+        if (str_contains($url, '/media/grabbers/devices') && ! str_contains($url, '?')) {
+            $devicesCallCount++;
+
+            return Http::response([
+                'MediaContainer' => [
+                    'Device' => [
+                        [
+                            'key' => 'device-99',
+                            'uuid' => 'device-uuid-abc',
+                            'uri' => 'http://m3u-editor/hdhr',
+                            'make' => 'Silicondust',
+                            'model' => 'm3u-editor HDHR',
+                        ],
                     ],
                 ],
-            ],
-        ]),
-        'plex.example.com:32400/livetv/dvrs/42*' => Http::response([], 200),
-    ]);
+            ]);
+        }
+
+        // DVR create: POST /livetv/dvrs with device= query param
+        if (str_contains($url, '/livetv/dvrs') && str_contains($url, 'device=') && $request->method() === 'POST') {
+            return Http::response([
+                'MediaContainer' => [
+                    'Dvr' => [['key' => '42', 'uuid' => 'dvr-uuid-new']],
+                ],
+            ], 201);
+        }
+
+        // Attach device: PUT /livetv/dvrs/42/devices/device-99
+        if (str_contains($url, '/livetv/dvrs/42/devices/device-99')) {
+            return Http::response([], 200);
+        }
+
+        // GET /livetv/dvrs (sequence: first empty, then with DVR)
+        if (str_contains($url, '/livetv/dvrs') && ! str_contains($url, '?') && ! str_contains($url, '/devices/')) {
+            $dvrsCallCount++;
+
+            if ($dvrsCallCount <= 2) {
+                // First two calls: getDvrs() mapped call + raw fetch
+                return Http::response(['MediaContainer' => ['Dvr' => []]]);
+            }
+
+            // After DVR creation: has DVR
+            return Http::response(['MediaContainer' => ['Dvr' => [
+                [
+                    'key' => '42',
+                    'uuid' => 'dvr-uuid-new',
+                    'Device' => [
+                        ['key' => 'device-99', 'uuid' => 'device-uuid-abc'],
+                    ],
+                ],
+            ]]]);
+        }
+
+        return Http::response([], 404);
+    });
 
     $service = PlexManagementService::make($this->integration);
     $result = $service->addDvrDevice('http://m3u-editor/hdhr', 'http://m3u-editor/epg.xml');
@@ -174,14 +233,14 @@ it('can register a DVR device', function () {
 
 it('fails DVR registration when HDHR device is unreachable', function () {
     Http::fake([
-        'http://m3u-editor/hdhr/discover.json' => Http::response(null, 500),
+        '*/hdhr/discover.json' => Http::response(null, 500),
     ]);
 
     $service = PlexManagementService::make($this->integration);
     $result = $service->addDvrDevice('http://m3u-editor/hdhr', 'http://m3u-editor/epg.xml');
 
     expect($result['success'])->toBeFalse();
-    expect($result['message'])->toContain('Cannot reach HDHR device');
+    expect($result['message'])->toContain('discover.json');
 });
 
 it('can remove a DVR', function () {
