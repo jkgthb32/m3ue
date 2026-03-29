@@ -25,6 +25,7 @@ use App\Livewire\PlaylistEpgUrl;
 use App\Livewire\PlaylistInfo;
 use App\Livewire\PlaylistM3uUrl;
 use App\Livewire\XtreamApiInfo;
+use App\Livewire\XtreamDnsStatus;
 use App\Models\Group;
 use App\Models\MediaServerIntegration;
 use App\Models\Playlist;
@@ -1039,6 +1040,7 @@ class PlaylistResource extends Resource
                                     ->columns(1)
                                     ->schema([
                                         Livewire::make(XtreamApiInfo::class),
+                                        Livewire::make(XtreamDnsStatus::class),
                                     ]),
                             ]),
                     ])->contained(false),
@@ -1126,6 +1128,25 @@ class PlaylistResource extends Resource
                         ->url()
                         ->columnSpan(2)
                         ->required()
+                        ->hidden(fn (Get $get): bool => ! $get('xtream')),
+                    Repeater::make('xtream_fallback_urls')
+                        ->label('Fallback URLs')
+                        ->helperText('Alternative server URLs. If the primary URL fails, these will be tried in order. Same credentials are used for all URLs.')
+                        ->simple(
+                            TextInput::make('url')
+                                ->label('URL')
+                                ->prefixIcon('heroicon-m-globe-alt')
+                                ->rules([new UrlIsAllowed])
+                                ->maxLength(4000)
+                                ->url()
+                                ->required(),
+                        )
+                        ->defaultItems(0)
+                        ->maxItems(10)
+                        ->collapsible()
+                        ->collapsed()
+                        ->reorderable()
+                        ->columnSpan(2)
                         ->hidden(fn (Get $get): bool => ! $get('xtream')),
                     Grid::make()
                         ->columnSpanFull()

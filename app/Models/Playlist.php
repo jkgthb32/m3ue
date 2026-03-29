@@ -41,6 +41,7 @@ class Playlist extends Model
         'import_prefs' => 'array',
         'groups' => 'array',
         'xtream_config' => 'array',
+        'xtream_fallback_urls' => 'array',
         'xtream_status' => 'array',
         'short_urls' => 'array',
         'proxy_options' => 'array',
@@ -368,6 +369,74 @@ class Playlist extends Model
                 return $value;
             }
         );
+    }
+
+    /**
+     * Get all Xtream URLs in priority order: primary first, then fallbacks.
+     *
+     * @return string[]
+     */
+    public function getOrderedXtreamUrls(): array
+    {
+        $urls = [];
+
+        $primary = $this->xtream_config['url'] ?? null;
+        if ($primary) {
+            $urls[] = rtrim($primary, '/');
+        }
+
+        foreach ($this->xtream_fallback_urls ?? [] as $url) {
+            $normalized = rtrim((string) $url, '/');
+            if ($normalized !== '' && ! in_array($normalized, $urls)) {
+                $urls[] = $normalized;
+            }
+        }
+
+        return $urls;
+    }
+
+    /**
+     * Rotate the primary Xtream URL to the next working URL.
+     * Moves the failed URL into fallbacks and promotes the new URL to primary.
+     *
+     * @return string|null The new primary URL, or null if no alternatives exist.
+     */
+    public function rotateXtreamUrl(string $failedUrl): ?string
+    {
+        $allUrls = $this->getOrderedXtreamUrls();
+
+        if (count($allUrls) <= 1) {
+            return null;
+        }
+
+        $failedNormalized = rtrim($failedUrl, '/');
+
+        // Find the next URL after the failed one
+        $failedIndex = array_search($failedNormalized, $allUrls);
+        if ($failedIndex === false) {
+            return null;
+        }
+
+        $nextIndex = ($failedIndex + 1) % count($allUrls);
+        $newPrimary = $allUrls[$nextIndex];
+
+        // Build new fallback list: all URLs except the new primary
+        $newFallbacks = [];
+        foreach ($allUrls as $url) {
+            if ($url !== $newPrimary) {
+                $newFallbacks[] = $url;
+            }
+        }
+
+        // Update the model
+        $config = $this->xtream_config;
+        $config['url'] = $newPrimary;
+        $this->update([
+            'xtream_config' => $config,
+            'xtream_fallback_urls' => $newFallbacks,
+        ]);
+
+        return $newPrimary;
     }
 
     public function xtreamStatus(): Attribute
