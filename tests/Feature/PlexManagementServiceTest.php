@@ -557,8 +557,11 @@ it('can refresh EPG guides', function () {
     ]);
 
     Http::fake([
+        'plex.example.com:32400/livetv/dvrs/42' => Http::response(['MediaContainer' => ['Dvr' => [['Setting' => [
+            ['id' => 'ButlerTaskRefreshEpgGuides', 'value' => 'true', 'default' => 'true'],
+            ['id' => 'xmltvCustomRefreshInHours', 'value' => '24', 'default' => '24'],
+        ]]]]], 200),
         'plex.example.com:32400/livetv/dvrs/42/prefs*' => Http::response([], 200),
-        'plex.example.com:32400/butler/RefreshEPGGuides' => Http::response([], 200),
     ]);
 
     $service = PlexManagementService::make($this->integration);
@@ -570,6 +573,11 @@ it('can refresh EPG guides', function () {
 
 it('can configure DVR preferences', function () {
     Http::fake([
+        'plex.example.com:32400/livetv/dvrs/42' => Http::response(['MediaContainer' => ['Dvr' => [['Setting' => [
+            ['id' => 'minVideoQuality', 'value' => '0', 'default' => '0'],
+            ['id' => 'xmltvCustomRefreshInHours', 'value' => '24', 'default' => '24'],
+            ['id' => 'ButlerTaskRefreshEpgGuides', 'value' => 'true', 'default' => 'true'],
+        ]]]]], 200),
         'plex.example.com:32400/livetv/dvrs/42/prefs*' => Http::response([], 200),
     ]);
 

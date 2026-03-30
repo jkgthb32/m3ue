@@ -497,18 +497,17 @@ class PlexManagementService
     /**
      * Configure DVR preferences (EPG refresh settings, recording settings).
      *
-     * Uses PUT /livetv/dvrs/{key}/prefs (Headendarr-compatible).
+     * Plex requires ALL settings to be sent in a single PUT request.
+     * Fetches current settings first, merges overrides, then sends them all.
      *
      * @param  array<string, string>  $settings
      */
     public function configureDvrPrefs(string $dvrId, array $settings = []): array
     {
         try {
-            $defaults = [
-                'ButlerTaskRefreshEpgGuides' => 'true',
-                'xmltvCustomRefreshInHours' => '12',
-            ];
-            $prefs = array_merge($defaults, $settings);
+            $currentSettings = $this->fetchCurrentDvrSettings($dvrId);
+
+            $prefs = array_merge($currentSettings, $settings);
 
             $response = $this->client()
                 ->withBody('')
@@ -537,9 +536,59 @@ class PlexManagementService
     }
 
     /**
-     * Trigger Plex to refresh its EPG guides now.
+     * Fetch current DVR settings from Plex and return as id => value map.
      *
-     * Also ensures auto-refresh is enabled in DVR prefs.
+     * @return array<string, string>
+     */
+    protected function fetchCurrentDvrSettings(string $dvrId): array
+    {
+        $response = $this->client()->get("/livetv/dvrs/{$dvrId}");
+
+        if (! $response->successful()) {
+            return $this->defaultDvrSettings();
+        }
+
+        $dvr = $response->json('MediaContainer.Dvr.0', []);
+        $settings = [];
+
+        foreach ($dvr['Setting'] ?? [] as $setting) {
+            $settings[$setting['id']] = $setting['value'] ?? $setting['default'] ?? '';
+        }
+
+        return $settings ?: $this->defaultDvrSettings();
+    }
+
+    /**
+     * Default DVR settings matching Plex defaults.
+     *
+     * @return array<string, string>
+     */
+    protected function defaultDvrSettings(): array
+    {
+        return [
+            'minVideoQuality' => '0',
+            'replaceLowerQuality' => 'false',
+            'recordPartials' => 'true',
+            'startOffsetMinutes' => '0',
+            'endOffsetMinutes' => '0',
+            'useUmp' => 'false',
+            'postprocessingScript' => '',
+            'comskipMethod' => '0',
+            'ButlerTaskRefreshEpgGuides' => 'true',
+            'mediaProviderEpgXmltvGuideRefreshStartTime' => '10',
+            'xmltvCustomRefreshInHours' => '24',
+            'kidsCategories' => 'kids',
+            'newsCategories' => 'news',
+            'sportsCategories' => 'sports',
+        ];
+    }
+
+    /**
+     * Ensure EPG guide auto-refresh is enabled in DVR preferences.
+     *
+     * Plex manages EPG refresh internally via the butler scheduler.
+     * There is no manual trigger endpoint — we configure the DVR prefs
+     * to enable the refresh task and set the desired interval.
      */
     public function refreshGuides(): array
     {
@@ -549,30 +598,21 @@ class PlexManagementService
                 return ['success' => false, 'message' => 'No DVR registered. Register a tuner first.'];
             }
 
-            // Enable auto-refresh in DVR prefs
             $prefsResult = $this->configureDvrPrefs($dvrId, [
                 'ButlerTaskRefreshEpgGuides' => 'true',
                 'xmltvCustomRefreshInHours' => '12',
             ]);
 
-            // Trigger a manual EPG guide refresh via Plex's butler
-            $refreshResponse = $this->client()->withBody('')->post('/butler/RefreshEPGGuides');
-
-            Log::debug('PlexManagementService: refreshGuides butler response', [
-                'status' => $refreshResponse->status(),
-                'prefs_result' => $prefsResult['success'],
+            Log::debug('PlexManagementService: refreshGuides result', [
+                'dvr_id' => $dvrId,
+                'success' => $prefsResult['success'],
             ]);
 
-            if ($refreshResponse->successful()) {
-                return ['success' => true, 'message' => 'EPG guide refresh triggered. Plex will re-fetch the guide data.'];
-            }
-
-            // Butler endpoint may return non-200 on some Plex versions
             if ($prefsResult['success']) {
-                return ['success' => true, 'message' => 'DVR auto-refresh configured. Butler returned HTTP '.$refreshResponse->status().', but prefs were saved. Plex will refresh guides automatically.'];
+                return ['success' => true, 'message' => 'EPG auto-refresh enabled (every 12 hours). Plex will re-fetch the guide data on its next scheduled run.'];
             }
 
-            return ['success' => false, 'message' => 'Failed to refresh guides. Prefs: '.$prefsResult['message'].'. Butler: HTTP '.$refreshResponse->status()];
+            return $prefsResult;
         } catch (Exception $e) {
             Log::error('PlexManagementService: refreshGuides exception', ['error' => $e->getMessage()]);
 
