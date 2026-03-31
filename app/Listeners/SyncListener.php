@@ -13,6 +13,7 @@ use App\Jobs\RunPostProcess;
 use App\Jobs\SyncPlexDvrJob;
 use App\Models\Epg;
 use App\Models\Playlist;
+use App\Plugins\PluginHookDispatcher;
 use Illuminate\Support\Facades\Bus;
 
 class SyncListener
@@ -40,6 +41,15 @@ class SyncListener
 
             // Handle Playlist post-processes
             $this->dispatchPostProcessJobs($event->model, $lastSync);
+            if ($playlist->status === Status::Completed) {
+                app(PluginHookDispatcher::class)->dispatch('playlist.synced', [
+                    'playlist_id' => $playlist->id,
+                    'user_id' => $playlist->user_id,
+                ], [
+                    'dry_run' => false,
+                    'user_id' => $playlist->user_id,
+                ]);
+            }
         }
         if ($event->model instanceof Epg) {
             // Handle EPG post-processes
@@ -47,6 +57,13 @@ class SyncListener
 
             // Generate EPG cache if sync was successful
             if ($event->model->status === Status::Completed) {
+                app(PluginHookDispatcher::class)->dispatch('epg.synced', [
+                    'epg_id' => $event->model->id,
+                    'user_id' => $event->model->user_id,
+                ], [
+                    'user_id' => $event->model->user_id,
+                ]);
+
                 $this->postProcessEpg($event->model);
 
                 // Sync Plex DVR (EPG data changed, guide needs refresh)

@@ -17,6 +17,7 @@ use App\Http\Controllers\NetworkStreamController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PlaylistController;
 use App\Http\Controllers\PlaylistGenerateController;
+use App\Http\Controllers\PluginRunReportController;
 use App\Http\Controllers\ProxyController;
 use App\Http\Controllers\SchedulesDirectImageProxyController;
 use App\Http\Controllers\ShortURLController;
@@ -92,6 +93,10 @@ Route::get('/logo-proxy/{encodedUrl}/{filename?}', [LogoProxyController::class, 
 Route::get('/assets/{asset}/preview', AssetPreviewController::class)
     ->middleware(['auth'])
     ->name('assets.preview');
+
+Route::get('/extension-plugins/{plugin}/runs/{run}/report', PluginRunReportController::class)
+    ->middleware(['auth'])
+    ->name('extension-plugins.runs.report');
 
 Route::get('/logo-repository', [LogoRepositoryController::class, 'index'])
     ->name('logo.repository');

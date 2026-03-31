@@ -463,6 +463,12 @@ class NetworkResource extends Resource
                                 ->default(false)
                                 ->live(),
 
+                            Toggle::make('broadcast_on_demand')
+                                ->label('Start On Viewer Connection')
+                                ->helperText('When enabled, broadcast waits for a viewer connection before starting automatically. Manual Start still forces immediate startup.')
+                                ->default(false)
+                                ->visible(fn (Get $get): bool => $get('broadcast_enabled')),
+
                             Grid::make(2)->schema([
                                 Select::make('output_format')
                                     ->label(__('Output Format'))
@@ -636,6 +642,13 @@ class NetworkResource extends Resource
                                     }
                                 }),
 
+                            Toggle::make('broadcast_on_demand')
+                                ->label('Start On Viewer Connection')
+                                ->helperText('When enabled, worker waits for viewer activity before auto-starting. Manual Start still starts immediately.')
+                                ->default(false)
+                                ->columnSpan(1)
+                                ->visible(fn (Get $get): bool => $get('broadcast_enabled')),
+
                             Toggle::make('broadcast_schedule_enabled')
                                 ->label(__('Schedule Start Time'))
                                 ->helperText(__('Wait until a specific date/time before starting the broadcast.'))
@@ -800,7 +813,21 @@ class NetworkResource extends Resource
                                         ->label(__('Status'))
                                         ->disabled()
                                         ->dehydrated(false)
-                                        ->formatStateUsing(fn ($record) => $record?->isBroadcasting() ? '🟢 Broadcasting (PID: '.$record->broadcast_pid.')' : '⚪ Not broadcasting'),
+                                        ->formatStateUsing(function ($record) {
+                                            if (! $record) {
+                                                return '⚪ Not broadcasting';
+                                            }
+
+                                            if ($record->isBroadcasting()) {
+                                                return '🟢 Broadcasting (PID: '.$record->broadcast_pid.')';
+                                            }
+
+                                            if ($record->isWaitingForConnection()) {
+                                                return '🟡 Started (waiting for connection)';
+                                            }
+
+                                            return '⚪ Not broadcasting';
+                                        }),
 
                                     TextInput::make('broadcast_started_at_display')
                                         ->label(__('Started At'))
@@ -932,6 +959,12 @@ class NetworkResource extends Resource
                         if ($record->isBroadcasting()) {
                             return 'Live';
                         }
+                        if ($record->isWaitingForConnection()) {
+                            return 'Waiting';
+                        }
+                        if ($record->broadcast_on_demand && $record->broadcast_requested) {
+                            return 'Waiting';
+                        }
                         if (! $record->broadcast_requested) {
                             return 'Stopped';
                         }
@@ -948,6 +981,7 @@ class NetworkResource extends Resource
                     ->color(fn (string $state): string => match ($state) {
                         'Live' => 'success',
                         'Starting' => 'info',
+                        'Waiting' => 'info',
                         'Scheduled' => 'warning',
                         'Stopped' => 'warning',
                         'Disabled' => 'gray',
@@ -956,6 +990,7 @@ class NetworkResource extends Resource
                     ->icon(fn (string $state): string => match ($state) {
                         'Live' => 'heroicon-s-signal',
                         'Starting' => 'heroicon-s-arrow-path',
+                        'Waiting' => 'heroicon-s-pause-circle',
                         'Scheduled' => 'heroicon-s-clock',
                         'Stopped' => 'heroicon-s-stop',
                         'Disabled' => 'heroicon-s-no-symbol',
@@ -1035,7 +1070,7 @@ class NetworkResource extends Resource
                         // Mark as requested so worker will start it when time comes
                         $record->update(['broadcast_requested' => true]);
 
-                        $result = $service->start($record);
+                        $result = $service->startNow($record);
 
                         // Refresh to get updated error message
                         $record->refresh();
@@ -1100,6 +1135,51 @@ class NetworkResource extends Resource
                                 ->body('Generated schedules for '.$records->count().' networks.')
                                 ->send();
                         }),
+
+                    BulkAction::make('startBroadcastSelected')
+                        ->label('Start Broadcast')
+                        ->icon('heroicon-s-play')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalHeading('Start Broadcasting')
+                        ->modalDescription('Start broadcasting for the selected networks.')
+                        ->action(function (Collection $records): void {
+                            $service = app(NetworkBroadcastService::class);
+
+                            foreach ($records as $record) {
+                                $record->update(['broadcast_requested' => true]);
+                                $service->startNow($record);
+                            }
+
+                            Notification::make()
+                                ->success()
+                                ->title('Broadcast Started')
+                                ->body('Broadcast start requested for '.$records->count().' networks.')
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
+
+                    BulkAction::make('stopBroadcastSelected')
+                        ->label('Stop Broadcast')
+                        ->icon('heroicon-s-stop')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Stop Broadcasting')
+                        ->modalDescription('Stop broadcasting for the selected networks.')
+                        ->action(function (Collection $records): void {
+                            $service = app(NetworkBroadcastService::class);
+
+                            foreach ($records as $record) {
+                                $service->stop($record);
+                            }
+
+                            Notification::make()
+                                ->warning()
+                                ->title('Broadcast Stopped')
+                                ->body('Broadcast stopped for '.$records->count().' networks.')
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
 
                     BulkAction::make('set_logo_url')
                         ->label(__('Set logo URL'))
