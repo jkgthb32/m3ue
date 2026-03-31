@@ -421,7 +421,7 @@ class StreamFileSettingResource extends Resource
                             ->live(),
                         Forms\Components\TagsInput::make('name_filter_patterns')
                             ->label(__('Patterns to remove'))
-                            ->placeholder(__('Add pattern (e.g. \"DE • \" or \"EN |\")'))
+                            ->placeholder(__('Add pattern (e.g. "DE • " or "EN |")'))
                             ->helperText(__('Enter words, symbols or prefixes to remove. Press Enter after each pattern.'))
                             ->columnSpanFull()
                             ->hidden(fn ($get) => ! $get('name_filter_enabled')),

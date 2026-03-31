@@ -8,6 +8,11 @@ class CustomDashboard extends Dashboard
 {
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-rocket-launch';
 
+    public static function getNavigationLabel(): string
+    {
+        return __('Dashboard');
+    }
+
     protected function getActions(): array
     {
         return [

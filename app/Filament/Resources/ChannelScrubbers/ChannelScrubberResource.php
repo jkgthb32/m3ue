@@ -158,7 +158,7 @@ class ChannelScrubberResource extends Resource
                     ->hiddenLabel()
                     ->requiresConfirmation()
                     ->modalIcon('heroicon-s-arrow-path')
-                    ->modalDescription(__('Are you sure you want to manually trigger this scrubber to run? This will not modify the \"Recurring\" setting.'))
+                    ->modalDescription(__('Are you sure you want to manually trigger this scrubber to run? This will not modify the "Recurring" setting.'))
                     ->modalSubmitActionLabel(__('Run Now'))
                     ->action(function ($record) {
                         $record->update([
@@ -237,7 +237,7 @@ class ChannelScrubberResource extends Resource
                         ->icon('heroicon-s-play-circle')
                         ->requiresConfirmation()
                         ->modalIcon('heroicon-s-arrow-path')
-                        ->modalDescription(__('Run the selected scrubbers now? This will not modify the \"Recurring\" setting.'))
+                        ->modalDescription(__('Run the selected scrubbers now? This will not modify the "Recurring" setting.'))
                         ->modalSubmitActionLabel(__('Run Now'))
                         ->action(function ($records) {
                             foreach ($records as $record) {

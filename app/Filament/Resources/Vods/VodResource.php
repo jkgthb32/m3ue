@@ -1186,7 +1186,7 @@ class VodResource extends Resource
                             Notification::make()
                                 ->success()
                                 ->title(__('Merge re-enabled for selected channels'))
-                                ->body(__('The merge has been re-enabled for the selected channels. They can now be merged during \"Merge Same ID\" jobs.'))
+                                ->body(__('The merge has been re-enabled for the selected channels. They can now be merged during "Merge Same ID" jobs.'))
                                 ->send();
                         })
                         ->hidden(fn () => ! $addToCustom)
@@ -1194,7 +1194,7 @@ class VodResource extends Resource
                         ->requiresConfirmation()
                         ->icon('heroicon-o-arrows-pointing-in')
                         ->modalIcon('heroicon-o-arrows-pointing-in')
-                        ->modalDescription(__('Allow merging for selected channels when running \"Merge Same ID\" jobs.'))
+                        ->modalDescription(__('Allow merging for selected channels when running "Merge Same ID" jobs.'))
                         ->modalSubmitActionLabel(__('Enable now')),
                     BulkAction::make('disable-merge')
                         ->label(__('Disable Merge'))
@@ -1207,7 +1207,7 @@ class VodResource extends Resource
                             Notification::make()
                                 ->success()
                                 ->title(__('Merge disabled for selected channels'))
-                                ->body(__('The merge has been disabled for the selected channels. They will not be merged during \"Merge Same ID\" jobs.'))
+                                ->body(__('The merge has been disabled for the selected channels. They will not be merged during "Merge Same ID" jobs.'))
                                 ->send();
                         })
                         ->hidden(fn () => ! $addToCustom)
@@ -1215,7 +1215,7 @@ class VodResource extends Resource
                         ->requiresConfirmation()
                         ->icon('heroicon-o-arrows-pointing-in')
                         ->modalIcon('heroicon-o-arrows-pointing-in')
-                        ->modalDescription(__('Don\\\'t allow merging for selected channels when running \"Merge Same ID\" jobs.'))
+                        ->modalDescription(__('Don\\\'t allow merging for selected channels when running "Merge Same ID" jobs.'))
                         ->modalSubmitActionLabel(__('Disable now')),
                     BulkAction::make('enable')
                         ->label(__('Enable selected'))
@@ -1324,7 +1324,7 @@ class VodResource extends Resource
                 ->default(true),
             Toggle::make('can_merge')
                 ->default(true)
-                ->helperText(__('Allow this channel to be merged during \"Merge Same ID\" jobs.')),
+                ->helperText(__('Allow this channel to be merged during "Merge Same ID" jobs.')),
             Fieldset::make(__('Playlist Type (choose one)'))
                 ->schema([
                     Toggle::make('is_custom')

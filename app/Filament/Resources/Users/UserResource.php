@@ -50,6 +50,7 @@ class UserResource extends Resource
     {
         return null;
     }
+
     public static function getModelLabel(): string
     {
         return __('User');

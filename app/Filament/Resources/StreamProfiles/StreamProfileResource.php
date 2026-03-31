@@ -50,7 +50,7 @@ class StreamProfileResource extends Resource
                     ->required()
                     ->columnSpanFull()
                     ->maxLength(255)
-                    ->helperText(__('A descriptive name for this transcoding profile (e.g., \"720p Standard\", \"1080p High Quality\")')),
+                    ->helperText(__('A descriptive name for this transcoding profile (e.g., "720p Standard", "1080p High Quality")')),
 
                 Textarea::make('description')
                     ->label(__('Description'))

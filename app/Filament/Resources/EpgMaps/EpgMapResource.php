@@ -98,12 +98,12 @@ class EpgMapResource extends Resource
                     ->sortable(),
                 TextColumn::make('channel_count')
                     ->label(__('Search & Map'))
-                    ->tooltip(__('Number of channels that were searched for a matching EPG entry in this mapping. If the \"Override\" option is enabled, this will also include channels that were previously mapped. If the \"Override\" option is disabled, this will only include channels that were not previously mapped.'))
+                    ->tooltip(__('Number of channels that were searched for a matching EPG entry in this mapping. If the "Override" option is enabled, this will also include channels that were previously mapped. If the "Override" option is disabled, this will only include channels that were not previously mapped.'))
                     ->toggleable()
                     ->sortable(),
                 TextColumn::make('mapped_count')
                     ->label(__('Newly Mapped'))
-                    ->tooltip(__('Number of channels that were successfully matched to an EPG entry in this mapping. When \"Override\" is disabled, it is normal for this count to be 0 on subsequent syncs.'))
+                    ->tooltip(__('Number of channels that were successfully matched to an EPG entry in this mapping. When "Override" is disabled, it is normal for this count to be 0 on subsequent syncs.'))
                     ->toggleable()
                     ->sortable(),
                 ToggleColumn::make('override')
@@ -144,7 +144,7 @@ class EpgMapResource extends Resource
                     ->hiddenLabel()
                     ->requiresConfirmation()
                     ->modalIcon('heroicon-s-arrow-path')
-                    ->modalDescription(__('Are you sure you want to manually trigger this EPG mapping to run again? This will not modify the \"Recurring\" setting.'))
+                    ->modalDescription(__('Are you sure you want to manually trigger this EPG mapping to run again? This will not modify the "Recurring" setting.'))
                     ->modalSubmitActionLabel(__('Run Now'))
                     ->action(function ($record) {
                         $record->update([
@@ -166,7 +166,7 @@ class EpgMapResource extends Resource
                             ->send();
                     })
                     ->hidden(fn ($record) => $record->status === Status::Processing || $record->status === Status::Pending)
-                    ->tooltip(__('Manually trigger this EPG mapping to run again. This will not modify the \"Recurring\" setting.')),
+                    ->tooltip(__('Manually trigger this EPG mapping to run again. This will not modify the "Recurring" setting.')),
                 Action::make('restart')
                     ->label(__('Restart Now'))
                     ->icon('heroicon-s-arrow-path')
@@ -205,7 +205,7 @@ class EpgMapResource extends Resource
                         ->icon('heroicon-s-play-circle')
                         ->requiresConfirmation()
                         ->modalIcon('heroicon-s-arrow-path')
-                        ->modalDescription(__('Are you sure you want to manually trigger this EPG mapping to run again? This will not modify the \"Recurring\" setting.'))
+                        ->modalDescription(__('Are you sure you want to manually trigger this EPG mapping to run again? This will not modify the "Recurring" setting.'))
                         ->modalSubmitActionLabel(__('Run Now'))
                         ->action(function ($records) {
                             foreach ($records as $record) {
@@ -299,7 +299,7 @@ class EpgMapResource extends Resource
                         ->inline(true)
                         ->live()
                         ->default(false)
-                        ->helperText(__('When enabled, channels that do not have \"epg_channel_id\" or \"tvg-id\" will be skipped during the mapping process. Disable this to attempt to match all channels, even those without an EPG ID.')),
+                        ->helperText(__('When enabled, channels that do not have "epg_channel_id" or "tvg-id" will be skipped during the mapping process. Disable this to attempt to match all channels, even those without an EPG ID.')),
                     Toggle::make('settings.use_regex')
                         ->label(__('Use regex for filtering'))
                         ->columnSpanFull()
@@ -312,21 +312,21 @@ class EpgMapResource extends Resource
                         ->columnSpanFull()
                         ->inline(true)
                         ->default(false)
-                        ->helperText(__('When enabled, quality indicators (HD, FHD, UHD, 4K, 720p, 1080p, etc.) will be removed during fuzzy matching. Disable this if channels have similar names but different quality levels (e.g., \"Sport HD\" vs \"Sport FHD\").')),
+                        ->helperText(__('When enabled, quality indicators (HD, FHD, UHD, 4K, 720p, 1080p, etc.) will be removed during fuzzy matching. Disable this if channels have similar names but different quality levels (e.g., "Sport HD" vs "Sport FHD").')),
 
                     Toggle::make('settings.prioritize_name_match')
                         ->label(__('Prioritize name/display name matching'))
                         ->columnSpanFull()
                         ->inline(true)
                         ->default(false)
-                        ->helperText(__('When enabled, exact matches on channel name/display name will be prioritized over channel_id matches. Enable this if your EPG has duplicate channel_ids for different quality versions (e.g., BBCOHD for \"BBC One HD\", \"BBC One HD²\", etc.). Disable if your EPG uses unique channel_ids.')),
+                        ->helperText(__('When enabled, exact matches on channel name/display name will be prioritized over channel_id matches. Enable this if your EPG has duplicate channel_ids for different quality versions (e.g., BBCOHD for "BBC One HD", "BBC One HD²", etc.). Disable if your EPG uses unique channel_ids.')),
 
                     Toggle::make('settings.set_epg_icon')
                         ->label(__('Set preferred icon to EPG'))
                         ->columnSpanFull()
                         ->inline(true)
                         ->default(false)
-                        ->helperText(__('When enabled, matched channels will have their preferred icon set to \"EPG\" instead of \"Channel\". This uses the EPG channel icon as the preferred logo source.')),
+                        ->helperText(__('When enabled, matched channels will have their preferred icon set to "EPG" instead of "Channel". This uses the EPG channel icon as the preferred logo source.')),
 
                     Fieldset::make(__('Matching Thresholds'))
                         ->schema([

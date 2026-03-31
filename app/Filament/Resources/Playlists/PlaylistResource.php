@@ -1456,7 +1456,7 @@ class PlaylistResource extends Resource
                                 ->numeric()
                                 ->default(1)
                                 ->minValue(1)
-                                ->helperText(__('Use \"Test\" to auto-detect from provider.'))
+                                ->helperText(__('Use "Test" to auto-detect from provider.'))
                                 ->columnSpan(1),
                             TextInput::make('priority')
                                 ->label(__('Priority'))
@@ -2003,7 +2003,7 @@ class PlaylistResource extends Resource
 
                     TagsInput::make('import_prefs.ignored_file_types')
                         ->label(__('Ignored file types'))
-                        ->helperText(__('Press [tab] or [return] to add item. You can ignore certain file types from being imported (.e.g.: \".mkv\", \".mp4\", etc.) This is useful for ignoring VOD or other unwanted content.'))
+                        ->helperText(__('Press [tab] or [return] to add item. You can ignore certain file types from being imported (.e.g.: ".mkv", ".mp4", etc.) This is useful for ignoring VOD or other unwanted content.'))
                         ->columnSpanFull()
                         ->suggestions([
                             '.avi',
@@ -2097,7 +2097,7 @@ class PlaylistResource extends Resource
                             tooltip: 'Requires "Fetch metadata" to be enabled. Stream files will be generated after metadata has been fully fetched.'
                         )
                         ->default(false)
-                        ->helperText(__('Generates .strm files for enabled series after metadata fetch completes. Requires \"Fetch metadata\" to be enabled.')),
+                        ->helperText(__('Generates .strm files for enabled series after metadata fetch completes. Requires "Fetch metadata" to be enabled.')),
                     Toggle::make('include_series_in_m3u')
                         ->label(__('Include series in M3U output'))
                         ->inline(false)
@@ -2106,7 +2106,7 @@ class PlaylistResource extends Resource
                             tooltip: 'Enable this to output your enabled series in the M3U file. It is recommended to enable the "Fetch metadata" option when enabled, otherwise you will need to manually fetch metadata for each series.'
                         )
                         ->default(false)
-                        ->helperText(__('When enabled, series will be included in the M3U output. It is recommended to enable the \"Fetch metadata\" option when enabled.')),
+                        ->helperText(__('When enabled, series will be included in the M3U output. It is recommended to enable the "Fetch metadata" option when enabled.')),
                 ])->hidden(fn (Get $get): bool => ! $get('xtream')),
 
             Section::make(__('VOD Processing'))
@@ -2264,7 +2264,7 @@ class PlaylistResource extends Resource
                             TagsInput::make('auto_merge_config.priority_keywords')
                                 ->label(__('Priority Keywords'))
                                 ->placeholder(__('Add keyword...'))
-                                ->helperText(__('Channels with these keywords in their name will be prioritized (e.g., \"RAW\", \"LOCAL\", \"HD\").'))
+                                ->helperText(__('Channels with these keywords in their name will be prioritized (e.g., "RAW", "LOCAL", "HD").'))
                                 ->splitKeys(['Tab', 'Return']),
                             Repeater::make('auto_merge_config.group_priorities')
                                 ->label(__('Group Priority Weights'))

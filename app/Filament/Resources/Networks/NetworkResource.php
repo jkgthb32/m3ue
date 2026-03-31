@@ -188,7 +188,7 @@ class NetworkResource extends Resource
                                     TextInput::make('group_name')
                                         ->label(__('Group Name'))
                                         ->placeholder(__('Networks'))
-                                        ->helperText(__('Group name used in the M3U playlist. Defaults to \"Networks\" if left empty.'))
+                                        ->helperText(__('Group name used in the M3U playlist. Defaults to "Networks" if left empty.'))
                                         ->maxLength(255),
                                 ]),
                         ]),
@@ -363,7 +363,7 @@ class NetworkResource extends Resource
                             TextInput::make('group_name')
                                 ->label(__('Group Name'))
                                 ->placeholder(__('Networks'))
-                                ->helperText(__('Group name used in the M3U playlist. Defaults to \"Networks\" if left empty.'))
+                                ->helperText(__('Group name used in the M3U playlist. Defaults to "Networks" if left empty.'))
                                 ->maxLength(255),
                         ]),
                 ]),
