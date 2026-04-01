@@ -39,6 +39,7 @@ config/logs
 config/env
 data/
 .DS_Store
+._*
 
 # Analysis and summary reports - never commit these
 *_ANALYSIS.md
@@ -56,7 +57,18 @@ npm_output.log
 *.log
 docker-compose.ci-test.yml
 docker-compose.local.yml
+compose.dev.yaml
+compose.services.yaml
+dev-setup.sh
+mediaserver.env
 fast-build.sh
 .opencode/
 .tmp/
+# Local plugins are generated artifacts, not source code
+/plugins/
 
+dev-setup.sh
+compose.dev.yaml
+compose.services.yaml
+mediaserver.env
+.env.testing

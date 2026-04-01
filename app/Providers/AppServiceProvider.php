@@ -13,6 +13,7 @@ use App\Events\PlaylistDeleted;
 use App\Events\PlaylistUpdated;
 use App\Jobs\ProcessChannelScrubber;
 use App\Jobs\SyncMediaServer;
+use App\Listeners\PersistUserLocale;
 use App\Livewire\BackupDestinationListRecords;
 use App\Livewire\StreamPlayer;
 use App\Livewire\TmdbSearch;
@@ -40,6 +41,7 @@ use App\Services\PlaylistService;
 use App\Services\ProxyService;
 use App\Services\SortService;
 use App\Settings\GeneralSettings;
+use CraftForge\FilamentLanguageSwitcher\Events\LocaleChanged;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\SecurityScheme;
@@ -59,6 +61,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
@@ -66,10 +69,11 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
-use Illuminate\Support\HtmlString;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
+use SocialiteProviders\Manager\SocialiteWasCalled;
+use SocialiteProviders\OIDC\OIDCExtendSocialite;
 use Spatie\Tags\Tag;
 use Throwable;
 
@@ -144,6 +148,12 @@ class AppServiceProvider extends ServiceProvider
 
         // Apply user-defined timezone (when TZ env var is not set)
         $this->applyTimezoneFromSettings();
+
+        // Register the OIDC Socialite driver (when enabled)
+        $this->registerOidcProvider();
+
+        // Persist user locale preference when changed via the language switcher
+        $this->registerLocaleListener();
 
         // Livewire components
         $this->registerLivewireComponents();
@@ -379,10 +389,10 @@ class AppServiceProvider extends ServiceProvider
     {
         // Allow only the admin to download and delete backups
         Gate::define('download-backup', function (User $user) {
-            return in_array($user->email, config('dev.admin_emails'), true);
+            return $user->isAdmin();
         });
         Gate::define('delete-backup', function (User $user) {
-            return in_array($user->email, config('dev.admin_emails'), true);
+            return $user->isAdmin();
         });
     }
 
@@ -727,11 +737,7 @@ class AppServiceProvider extends ServiceProvider
 
             // Auto-create Admin PlaylistViewer on new playlist/alias creation
             $autoCreateAdminViewer = function ($record) {
-                $adminEmail = config('dev.admin_emails')[0] ?? null;
-                if (! $adminEmail) {
-                    return;
-                }
-                $adminUser = User::where('email', $adminEmail)->first();
+                $adminUser = User::where('is_admin', true)->first();
                 if (! $adminUser) {
                     return;
                 }
@@ -762,12 +768,6 @@ class AppServiceProvider extends ServiceProvider
      */
     private function registerFilamentHooks(): void
     {
-        // Add scroll to top event listener
-        FilamentView::registerRenderHook(
-            PanelsRenderHook::SCRIPTS_AFTER,
-            fn (): string => new HtmlString('<script>document.addEventListener("scroll-to-top", () => window.scrollTo({top: 0, left: 0, behavior: "smooth"}))</script>'),
-        );
-
         // Add footer view
         FilamentView::registerRenderHook(
             PanelsRenderHook::FOOTER,
@@ -790,7 +790,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Allow access to api docs
         Gate::define('viewApiDocs', function (User $user) use ($showApiDocs) {
-            return $showApiDocs && in_array($user->email, config('dev.admin_emails'), true);
+            return $showApiDocs && $user->isAdmin();
         });
 
         // Configure the API
@@ -827,8 +827,7 @@ class AppServiceProvider extends ServiceProvider
         // TZ environment variable always takes priority
         $envTimezone = config('dev.timezone');
         if (! empty($envTimezone)) {
-            config(['app.timezone' => $envTimezone]);
-            date_default_timezone_set($envTimezone);
+            $this->setApplicationTimezone($envTimezone);
 
             return;
         }
@@ -838,11 +837,26 @@ class AppServiceProvider extends ServiceProvider
             $timezone = $settings->app_timezone;
 
             if (! empty($timezone) && in_array($timezone, \DateTimeZone::listIdentifiers(), true)) {
-                config(['app.timezone' => $timezone]);
-                date_default_timezone_set($timezone);
+                $this->setApplicationTimezone($timezone);
             }
         } catch (Throwable) {
             // Settings may not be available during fresh installs / migrations
+        }
+    }
+
+    /**
+     * Apply a timezone consistently across the application and database.
+     */
+    private function setApplicationTimezone(string $timezone): void
+    {
+        config(['app.timezone' => $timezone]);
+        date_default_timezone_set($timezone);
+
+        // Sync the database session timezone so that timestamps stored via
+        // PostgreSQL's timestamptz columns use the correct offset.
+        $connection = config('database.default');
+        if (config("database.connections.{$connection}.driver") === 'pgsql') {
+            config(["database.connections.{$connection}.timezone" => $timezone]);
         }
     }
 
@@ -883,6 +897,29 @@ class AppServiceProvider extends ServiceProvider
 
         // Register the TMDB search component
         Livewire::component('tmdb-search', TmdbSearch::class);
+    }
+
+    /**
+     * Register the OIDC Socialite driver when OIDC authentication is enabled.
+     */
+    private function registerOidcProvider(): void
+    {
+        if (! config('services.oidc.enabled')) {
+            return;
+        }
+
+        Event::listen(
+            SocialiteWasCalled::class,
+            [OIDCExtendSocialite::class, 'handle'],
+        );
+    }
+
+    private function registerLocaleListener(): void
+    {
+        Event::listen(
+            LocaleChanged::class,
+            PersistUserLocale::class,
+        );
     }
 
     /**

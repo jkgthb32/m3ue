@@ -178,7 +178,7 @@ class ProcessM3uImportComplete implements ShouldQueue
                         ]);
 
                         // Cleanup the any new groups/channels
-                        $newGroups->delete();
+                        $newGroups->forceDelete();
                         $newChannels->delete();
 
                         // Clear out the jobs
@@ -232,6 +232,12 @@ class ProcessM3uImportComplete implements ShouldQueue
             ->where('is_custom', false)
             ->whereNull('group_id')
             ->delete();
+
+        // Clean up groups that have been soft-deleted for over 30 days
+        Group::onlyTrashed()
+            ->where('playlist_id', $playlist->id)
+            ->where('deleted_at', '<', now()->subDays(30))
+            ->forceDelete();
 
         // Clear out the jobs
         Job::where('batch_no', $this->batchNo)->delete();
@@ -428,10 +434,11 @@ class ProcessM3uImportComplete implements ShouldQueue
     ) {
         // Limit logged entries
         $limit = config('dev.max_channels');
+        $now = now();
 
         // Create the sync log entries
         $bulk = [];
-        $removedGroups->limit($limit)->cursor()->each(function ($group) use ($sync, &$bulk) {
+        $removedGroups->limit($limit)->cursor()->each(function ($group) use ($sync, &$bulk, $now) {
             $bulk[] = [
                 'playlist_sync_status_id' => $sync->id,
                 'name' => $group->name,
@@ -440,13 +447,15 @@ class ProcessM3uImportComplete implements ShouldQueue
                 'meta' => $group,
                 'playlist_id' => $group->playlist_id,
                 'user_id' => $group->user_id,
+                'created_at' => $now,
+                'updated_at' => $now,
             ];
             if (count($bulk) >= 100) {
                 PlaylistSyncStatusLog::insert($bulk);
                 $bulk = [];
             }
         });
-        $newGroups->limit($limit)->cursor()->each(function ($group) use ($sync, &$bulk) {
+        $newGroups->limit($limit)->cursor()->each(function ($group) use ($sync, &$bulk, $now) {
             $bulk[] = [
                 'playlist_sync_status_id' => $sync->id,
                 'name' => $group->name,
@@ -455,13 +464,15 @@ class ProcessM3uImportComplete implements ShouldQueue
                 'meta' => $group,
                 'playlist_id' => $group->playlist_id,
                 'user_id' => $group->user_id,
+                'created_at' => $now,
+                'updated_at' => $now,
             ];
             if (count($bulk) >= 100) {
                 PlaylistSyncStatusLog::insert($bulk);
                 $bulk = [];
             }
         });
-        $removedChannels->limit($limit)->cursor()->each(function ($channel) use ($sync, &$bulk) {
+        $removedChannels->limit($limit)->cursor()->each(function ($channel) use ($sync, &$bulk, $now) {
             $bulk[] = [
                 'playlist_sync_status_id' => $sync->id,
                 'name' => $channel->title,
@@ -470,13 +481,15 @@ class ProcessM3uImportComplete implements ShouldQueue
                 'meta' => $channel,
                 'playlist_id' => $channel->playlist_id,
                 'user_id' => $channel->user_id,
+                'created_at' => $now,
+                'updated_at' => $now,
             ];
             if (count($bulk) >= 100) {
                 PlaylistSyncStatusLog::insert($bulk);
                 $bulk = [];
             }
         });
-        $newChannels->limit($limit)->cursor()->each(function ($channel) use ($sync, &$bulk) {
+        $newChannels->limit($limit)->cursor()->each(function ($channel) use ($sync, &$bulk, $now) {
             $bulk[] = [
                 'playlist_sync_status_id' => $sync->id,
                 'name' => $channel->title,
@@ -485,6 +498,8 @@ class ProcessM3uImportComplete implements ShouldQueue
                 'meta' => $channel,
                 'playlist_id' => $channel->playlist_id,
                 'user_id' => $channel->user_id,
+                'created_at' => $now,
+                'updated_at' => $now,
             ];
             if (count($bulk) >= 100) {
                 PlaylistSyncStatusLog::insert($bulk);

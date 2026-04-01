@@ -54,12 +54,12 @@ class ViewVod extends ViewRecord
     {
         return [
             Actions\Action::make('back')
-                ->label('Back to VOD')
+                ->label(__('Back to VOD'))
                 ->url(VodResource::getUrl('index'))
                 ->icon('heroicon-s-arrow-left')
                 ->color('gray'),
             Actions\EditAction::make()
-                ->label('Edit VOD')
+                ->label(__('Edit VOD'))
                 ->slideOver()
                 ->color('gray')
                 ->icon('heroicon-s-pencil'),
@@ -73,19 +73,10 @@ class ViewVod extends ViewRecord
                 })
                 ->requiresConfirmation(),
             Actions\Action::make('play')
-                ->label('Play')
+                ->label(__('Play'))
                 ->icon('heroicon-s-play')
                 ->color('primary')
-                ->dispatch('openFloatingStream', [[
-                    'id' => $this->record->id,
-                    'stream_id' => $this->record->id,
-                    'content_type' => 'vod',
-                    'playlist_id' => $this->record->playlist_id,
-                    'title' => $this->record->title_custom ?? $this->record->title ?? $this->record->name,
-                    'url' => $this->record->getProxyUrl(),
-                    'format' => $this->record->container_extension ?? 'ts',
-                    'type' => 'channel',
-                ]]),
+                ->dispatch('openFloatingStream', fn () => [$this->record->getFloatingPlayerAttributes()]),
         ];
     }
 }

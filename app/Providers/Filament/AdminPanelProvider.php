@@ -10,13 +10,16 @@ use App\Filament\Widgets\DiscordWidget;
 use App\Filament\Widgets\DocumentsWidget;
 use App\Filament\Widgets\DonateCrypto;
 use App\Filament\Widgets\KoFiWidget;
+use App\Filament\Widgets\PluginsOverviewWidget;
 use App\Filament\Widgets\SharedStreamStatsWidget;
 use App\Filament\Widgets\StatsOverview;
 use App\Filament\Widgets\SystemHealthWidget;
 use App\Filament\Widgets\UpdateNoticeWidget;
 use App\Http\Middleware\DashboardMiddleware;
 // use App\Filament\Widgets\PayPalDonateWidget;
+use App\Http\Middleware\SeedLocaleFromUser;
 use App\Settings\GeneralSettings;
+use CraftForge\FilamentLanguageSwitcher\FilamentLanguageSwitcherPlugin;
 use Exception;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Http\Middleware\Authenticate;
@@ -93,39 +96,41 @@ class AdminPanelProvider extends PanelProvider
                 CustomDashboard::class,
             ])
             ->navigationGroups([
-                NavigationGroup::make('Playlist')
+                NavigationGroup::make(fn () => __('Playlist'))
                     ->icon('heroicon-m-play-pause'),
-                NavigationGroup::make('Integrations')
+                NavigationGroup::make(fn () => __('Integrations'))
                     ->icon('heroicon-m-server-stack'),
-                NavigationGroup::make('Live Channels')
+                NavigationGroup::make(fn () => __('Live Channels'))
                     ->icon('heroicon-m-tv'),
-                NavigationGroup::make('VOD Channels')
+                NavigationGroup::make(fn () => __('VOD Channels'))
                     ->icon('heroicon-m-film'),
-                NavigationGroup::make('Series')
+                NavigationGroup::make(fn () => __('Series'))
                     ->icon('heroicon-m-play'),
-                NavigationGroup::make('EPG')
+                NavigationGroup::make(fn () => __('EPG'))
                     ->icon('heroicon-m-calendar-days'),
-                NavigationGroup::make('Proxy')
+                NavigationGroup::make(fn () => __('Proxy'))
                     ->icon('heroicon-m-arrows-right-left'),
-                NavigationGroup::make('Tools')
+                NavigationGroup::make(fn () => __('Plugins'))
+                    ->icon('heroicon-m-puzzle-piece'),
+                NavigationGroup::make(fn () => __('Tools'))
                     ->collapsed()
                     ->icon('heroicon-m-wrench-screwdriver'),
             ])
             ->navigationItems([
                 NavigationItem::make('API Docs')
-                    ->label('API Docs ↗')
+                    ->label(fn () => __('API Docs').' ↗')
                     ->url('/docs/api', shouldOpenInNewTab: true)
-                    ->group('Tools')
+                    ->group(fn () => __('Tools'))
                     ->sort(sort: 9)
                     ->icon(null)
-                    ->visible(fn (): bool => in_array(auth()->user()->email, config('dev.admin_emails'), true)),
+                    ->visible(fn (): bool => auth()->user()->isAdmin()),
                 NavigationItem::make('Queue Manager')
-                    ->label('Queue Manager ↗')
+                    ->label(fn () => __('Queue Manager').' ↗')
                     ->url('/horizon', shouldOpenInNewTab: true)
-                    ->group('Tools')
+                    ->group(fn () => __('Tools'))
                     ->sort(10)
                     ->icon(null)
-                    ->visible(fn (): bool => in_array(auth()->user()->email, config('dev.admin_emails'), true)),
+                    ->visible(fn (): bool => auth()->user()->isAdmin()),
             ])
             ->breadcrumbs($settings['show_breadcrumbs'])
             ->widgets([
@@ -135,6 +140,7 @@ class AdminPanelProvider extends PanelProvider
                 DiscordWidget::class,
                 // PayPalDonateWidget::class,
                 KoFiWidget::class,
+                PluginsOverviewWidget::class,
                 // DonateCrypto::class,
                 StatsOverview::class,
                 // SharedStreamStatsWidget::class,
@@ -142,8 +148,13 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->plugins([
                 FilamentSpatieLaravelBackupPlugin::make()
-                    ->authorize(fn (): bool => in_array(auth()->user()->email, config('dev.admin_emails'), true))
+                    ->authorize(fn (): bool => auth()->user()->isAdmin())
                     ->usingPage(Backups::class),
+                FilamentLanguageSwitcherPlugin::make()
+                    ->locales(['en', 'de', 'fr', 'es'])
+                    ->showFlags(true)
+                    ->rememberLocale()
+                    ->showOnAuthPages(false),
             ])
             ->maxContentWidth($settings['content_width'])
             ->middleware([
@@ -157,6 +168,7 @@ class AdminPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                SeedLocaleFromUser::class, // Seeds session from DB locale (runs before plugin's SetLocale)
             ])
             ->authMiddleware([
                 Authenticate::class,
@@ -187,6 +199,14 @@ class AdminPanelProvider extends PanelProvider
             FilamentView::registerRenderHook(
                 PanelsRenderHook::GLOBAL_SEARCH_BEFORE, // Place it before the global search
                 fn (): string => view('components.external-ip-display')->render()
+            );
+        }
+
+        // Register OIDC SSO button on the login page
+        if (config('services.oidc.enabled')) {
+            FilamentView::registerRenderHook(
+                PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
+                fn (): string => view('filament.auth.oidc-login-button')->render(),
             );
         }
 

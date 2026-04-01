@@ -47,6 +47,7 @@ class RefreshPlaylist extends Command
                 ->each(function (Playlist $playlist) {
                     $playlist->update([
                         'status' => Status::Pending,
+                        'synced' => null,
                         'processing' => [
                             ...$playlist->processing ?? [],
                             'live_processing' => false,
@@ -72,16 +73,25 @@ class RefreshPlaylist extends Command
             }
 
             $count = 0;
-            $playlists->get()->each(function (Playlist $playlist) use (&$count) {
+            $failedRetryCooldown = (int) config('dev.failed_retry_cooldown_minutes', 30);
+            $playlists->get()->each(function (Playlist $playlist) use (&$count, $failedRetryCooldown) {
                 $cronExpression = new CronExpression($playlist->sync_interval);
 
-                // Check if sync is due (with a 1-minute buffer)
-                $lastRun = $playlist->synced ?? now()->subYears(1);
+                // Gate failed retries behind a cooldown to prevent CPU runaway
+                $isFailed = $playlist->status === Status::Failed;
+                $cooldownPassed = $playlist->updated_at->diffInMinutes(now()) >= $failedRetryCooldown;
+
+                if ($isFailed && ! $cooldownPassed) {
+                    return;
+                }
+
+                $force = $isFailed;
+                $lastRun = $force ? now()->subYears(1) : ($playlist->synced ?? now()->subYears(1));
                 $nextDue = $cronExpression->getNextRunDate($lastRun->toDateTimeImmutable());
 
                 if (now() >= $nextDue) {
                     $count++;
-                    dispatch(new ProcessM3uImport($playlist));
+                    dispatch(new ProcessM3uImport($playlist, $force));
                 }
             });
             $this->info('Dispatched '.$count.' playlists for refresh');

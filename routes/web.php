@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Api\DispatcharrController;
 use App\Http\Controllers\AssetPreviewController;
+use App\Http\Controllers\Auth\OidcController;
 use App\Http\Controllers\ChannelController;
 use App\Http\Controllers\EpgController;
 use App\Http\Controllers\EpgFileController;
@@ -16,6 +18,7 @@ use App\Http\Controllers\NetworkStreamController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PlaylistController;
 use App\Http\Controllers\PlaylistGenerateController;
+use App\Http\Controllers\PluginRunReportController;
 use App\Http\Controllers\ProxyController;
 use App\Http\Controllers\SchedulesDirectImageProxyController;
 use App\Http\Controllers\ShortURLController;
@@ -26,6 +29,10 @@ use App\Http\Controllers\XtreamApiController;
 use App\Http\Controllers\XtreamStreamController;
 use App\Services\ExternalIpService;
 use Illuminate\Support\Facades\Route;
+
+// OIDC SSO authentication
+Route::get('/auth/oidc/redirect', [OidcController::class, 'redirect'])->name('auth.oidc.redirect');
+Route::get('/auth/oidc/callback', [OidcController::class, 'callback'])->name('auth.oidc.callback');
 
 // In-app watch progress tracking (admin panel + guest panel)
 Route::get('/api/watch-progress', [WatchProgressController::class, 'fetch'])->name('watch-progress.fetch');
@@ -87,6 +94,10 @@ Route::get('/logo-proxy/{encodedUrl}/{filename?}', [LogoProxyController::class, 
 Route::get('/assets/{asset}/preview', AssetPreviewController::class)
     ->middleware(['auth'])
     ->name('assets.preview');
+
+Route::get('/extension-plugins/{plugin}/runs/{run}/report', PluginRunReportController::class)
+    ->middleware(['auth'])
+    ->name('extension-plugins.runs.report');
 
 Route::get('/logo-repository', [LogoRepositoryController::class, 'index'])
     ->name('logo.repository');
@@ -278,6 +289,10 @@ Route::get('/xmltv.php', [XtreamApiController::class, 'epg'])->name('xtream.api.
 // Stream endpoints
 Route::get('/live/{username}/{password}/{streamId}.{format?}', [XtreamStreamController::class, 'handleLive'])
     ->name('xtream.stream.live.root');
+
+// Dispatcharr-compatible proxy stream endpoint (used by emby-xtream plugin)
+Route::get('/proxy/ts/stream/{token}', [DispatcharrController::class, 'proxyStream'])
+    ->name('dispatcharr.proxy.stream');
 Route::get('/movie/{username}/{password}/{streamId}.{format?}', [XtreamStreamController::class, 'handleVod'])
     ->name('xtream.stream.vod.root');
 Route::get('/series/{username}/{password}/{streamId}.{format?}', [XtreamStreamController::class, 'handleSeries'])
