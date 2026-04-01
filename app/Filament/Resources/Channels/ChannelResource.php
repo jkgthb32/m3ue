@@ -294,8 +294,12 @@ class ChannelResource extends Resource
                 ->sortable(),
             IconColumn::make('stream_stats_probed_at')
                 ->label('Probed')
-                ->icon(fn ($state): string => $state ? 'heroicon-o-check-circle' : 'heroicon-o-x-circle')
-                ->color(fn ($state): string => $state ? 'success' : 'gray')
+                ->getStateUsing(fn ($record): bool => $record->stream_stats_probed_at !== null)
+                ->boolean()
+                ->trueIcon('heroicon-o-check-circle')
+                ->falseIcon('heroicon-o-x-circle')
+                ->trueColor('success')
+                ->falseColor('gray')
                 ->tooltip(fn ($record): ?string => $record->stream_stats_probed_at?->diffForHumans())
                 ->toggleable()
                 ->sortable(),
@@ -1143,12 +1147,19 @@ class ChannelResource extends Resource
             Toggle::make('enabled')
                 ->columnSpanFull()
                 ->default(true),
-            Toggle::make('can_merge')
-                ->default(true)
-                ->helperText('Allow this channel to be merged during "Merge Same ID" jobs.'),
-            Toggle::make('epg_map_enabled')
-                ->default(true)
-                ->helperText('Allow mapping EPG to this channel when running EPG mapping jobs.'),
+            Grid::make()
+                ->columns(3)
+                ->schema([
+                    Toggle::make('can_merge')
+                        ->default(true)
+                        ->helperText('Allow this channel to be merged during "Merge Same ID" jobs.'),
+                    Toggle::make('epg_map_enabled')
+                        ->default(true)
+                        ->helperText('Allow mapping EPG to this channel when running EPG mapping jobs.'),
+                    Toggle::make('probe_enabled')
+                        ->default(true)
+                        ->helperText('Allow probing this channel when running playlist channel probe jobs.'),
+                ]),
             Fieldset::make('Playlist Type (choose one)')
                 ->schema([
                     Toggle::make('is_custom')
