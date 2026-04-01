@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6a8fb4a8708c2650c7775501b355740c",
+    "content-hash": "32d0d75ca9317a73dd4a8a616adc114a",
     "packages": [
         {
             "name": "ashallendesign/laravel-config-validator",
