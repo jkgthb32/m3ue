@@ -6,7 +6,6 @@ use App\Facades\SortFacade;
 use App\Filament\Resources\Vods\VodResource;
 use App\Jobs\SyncPlexDvrJob;
 use App\Models\Channel;
-use App\Services\EpgCacheService;
 use Filament\Actions\AttachAction;
 use Filament\Actions\BulkAction;
 use Filament\Actions\CreateAction;
@@ -293,7 +292,6 @@ class VodRelationManager extends RelationManager
                     ->action(function (Collection $records, array $data) use ($ownerRecord): void {
                         $start = (int) $data['start'];
                         SortFacade::bulkRecountCustomPlaylistChannels($ownerRecord, $records, $start);
-                        EpgCacheService::clearPlaylistEpgCacheFile($ownerRecord);
                         dispatch(new SyncPlexDvrJob(trigger: 'custom_playlist_recount'));
                     })
                     ->after(function () {
