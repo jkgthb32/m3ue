@@ -157,9 +157,15 @@ class MediaServerIntegrationResource extends Resource implements CopilotResource
                 default => null,
             };
 
-            $tabs[] = Tab::make($section)
+            $tab = Tab::make($section)
                 ->icon($icon)
                 ->schema($fields);
+
+            if ($section === 'Plex Management') {
+                $tab->visible(fn (Get $get): bool => $get('type') === 'plex');
+            }
+
+            $tabs[] = $tab;
         }
 
         return [
