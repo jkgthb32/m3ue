@@ -2,8 +2,6 @@ name: Dev
 on:
   push:
     branches: [dev]
-    paths:
-      - 'config/dev.php'
   workflow_dispatch:
 
 concurrency:

@@ -2,8 +2,6 @@ name: Experimental
 on:
   push:
     branches: [experimental]
-    paths:
-      - 'config/dev.php'
   workflow_dispatch:
 
 concurrency:
