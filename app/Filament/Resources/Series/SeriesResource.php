@@ -170,19 +170,20 @@ class SeriesResource extends Resource implements CopilotResource
                 ->trueColor('success')
                 ->falseColor('gray')
                 ->tooltip(function ($record): string {
-                    if ($record->has_metadata) {
-                        $ids = [];
-                        if ($record->tmdb_id || ($record->metadata['tmdb_id'] ?? null)) {
-                            $ids[] = 'TMDB: '.($record->tmdb_id ?? $record->metadata['tmdb_id']);
+                    $ids = $record->getMovieDbIds();
+                    if (! empty($ids['tmdb']) || ! empty($ids['tvdb']) || ! empty($ids['imdb'])) {
+                        $parts = [];
+                        if (! empty($ids['tmdb'])) {
+                            $parts[] = 'TMDB: '.$ids['tmdb'];
                         }
-                        if ($record->tvdb_id || ($record->metadata['tvdb_id'] ?? null)) {
-                            $ids[] = 'TVDB: '.($record->tvdb_id ?? $record->metadata['tvdb_id']);
+                        if (! empty($ids['tvdb'])) {
+                            $parts[] = 'TVDB: '.$ids['tvdb'];
                         }
-                        if ($record->imdb_id || ($record->metadata['imdb_id'] ?? null)) {
-                            $ids[] = 'IMDB: '.($record->imdb_id ?? $record->metadata['imdb_id']);
+                        if (! empty($ids['imdb'])) {
+                            $parts[] = 'IMDB: '.$ids['imdb'];
                         }
 
-                        return implode(' | ', $ids);
+                        return implode(' | ', $parts);
                     }
 
                     return 'No TMDB/TVDB/IMDB IDs available';
@@ -252,8 +253,11 @@ class SeriesResource extends Resource implements CopilotResource
                             ->orWhereNotNull('tvdb_id')
                             ->orWhereNotNull('imdb_id')
                             ->orWhereRaw("metadata::jsonb ?? 'tmdb_id'")
+                            ->orWhereRaw("metadata::jsonb ?? 'tmdb'")
                             ->orWhereRaw("metadata::jsonb ?? 'tvdb_id'")
-                            ->orWhereRaw("metadata::jsonb ?? 'imdb_id'");
+                            ->orWhereRaw("metadata::jsonb ?? 'tvdb'")
+                            ->orWhereRaw("metadata::jsonb ?? 'imdb_id'")
+                            ->orWhereRaw("metadata::jsonb ?? 'imdb'");
                     });
                 }),
             Filter::make('missing_metadata')
@@ -265,9 +269,14 @@ class SeriesResource extends Resource implements CopilotResource
                         ->whereNull('imdb_id')
                         ->where(function ($q) {
                             $q->whereNull('metadata')
-                                ->orWhereRaw("NOT (metadata::jsonb ?? 'tmdb_id')")
-                                ->orWhereRaw("NOT (metadata::jsonb ?? 'tvdb_id')")
-                                ->orWhereRaw("NOT (metadata::jsonb ?? 'imdb_id')");
+                                ->orWhere(function ($inner) {
+                                    $inner->whereRaw("NOT (metadata::jsonb ?? 'tmdb_id')")
+                                        ->whereRaw("NOT (metadata::jsonb ?? 'tmdb')")
+                                        ->whereRaw("NOT (metadata::jsonb ?? 'tvdb_id')")
+                                        ->whereRaw("NOT (metadata::jsonb ?? 'tvdb')")
+                                        ->whereRaw("NOT (metadata::jsonb ?? 'imdb_id')")
+                                        ->whereRaw("NOT (metadata::jsonb ?? 'imdb')");
+                                });
                         });
                 }),
         ];
