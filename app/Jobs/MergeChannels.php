@@ -61,6 +61,7 @@ class MergeChannels implements ShouldQueue
         public ?int $groupId = null,
         public ?array $weightedConfig = null,
         public ?bool $newChannelsOnly = null,
+        public ?array $regexPatterns = null,
     ) {}
 
     /**
@@ -193,10 +194,17 @@ class MergeChannels implements ShouldQueue
      */
     protected function processRegexMerges(array $playlistIds, array $playlistPriority): array
     {
-        $patterns = Playlist::find($this->playlistId)?->auto_merge_config['regex_patterns'] ?? [];
+        $patterns = $this->regexPatterns ?? [];
 
         if (empty($patterns)) {
-            return ['processed' => 0, 'deactivated' => 0];
+            // If patterns not set directly, check if playlist has auto_merge_config with regex_patterns
+            $playlist = Playlist::find($this->playlistId);
+            if ($playlist) {
+                $patterns = $playlist->auto_merge_config['regex_patterns'] ?? [];
+            }
+            if (empty($patterns)) {
+                return ['processed' => 0, 'deactivated' => 0];
+            }
         }
 
         // Validate all patterns up-front so the chunk loop never calls @preg_match

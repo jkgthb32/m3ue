@@ -77,6 +77,7 @@ it('merges channels matching a playlist-level regex pattern as failovers', funct
         $playlists,
         $this->playlist->id,
         forceCompleteRemerge: true,
+        regexPatterns: $this->playlist->fresh()->auto_merge_config['regex_patterns'] ?? null,
     );
 
     // Exactly 2 failovers created for the group (the 3 matching channels minus the master)
@@ -103,7 +104,12 @@ it('skips channels with invalid regex patterns without crashing', function () {
 
     $playlists = collect([['playlist_failover_id' => $this->playlist->id]]);
 
-    MergeChannels::dispatchSync($this->user, $playlists, $this->playlist->id);
+    MergeChannels::dispatchSync(
+        $this->user,
+        $playlists,
+        $this->playlist->id,
+        regexPatterns: $this->playlist->fresh()->auto_merge_config['regex_patterns'] ?? null,
+    );
 
     expect(ChannelFailover::count())->toBe(0);
 });
@@ -160,6 +166,7 @@ it('matches regex against channel name when title does not match', function () {
         $playlists,
         $this->playlist->id,
         forceCompleteRemerge: true,
+        regexPatterns: $this->playlist->fresh()->auto_merge_config['regex_patterns'] ?? null,
     );
 
     expect(ChannelFailover::count())->toBe(1);
