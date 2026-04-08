@@ -79,7 +79,6 @@ class PluginsDashboard extends Page
             Action::make('check_all_updates')
                 ->label(__('Check for Updates'))
                 ->icon('heroicon-o-arrow-path')
-                ->color('info')
                 ->requiresConfirmation()
                 ->modalHeading(__('Check Plugin Updates'))
                 ->modalDescription(__('This will query GitHub for the latest release of every plugin that has a repository configured. Continue?'))
@@ -131,50 +130,54 @@ class PluginsDashboard extends Page
     private function summaryCards(): array
     {
         return [
-            [
-                'label' => __('Installed Plugins'),
-                'value' => Plugin::query()
-                    ->where('installation_status', 'installed')
-                    ->count(),
-                'description' => __('Plugins that are currently installed and available to operate.'),
-                'icon' => 'heroicon-s-puzzle-piece',
-                'color' => 'blue',
+            'top_row' => [
+                [
+                    'label' => __('Installed Plugins'),
+                    'value' => Plugin::query()
+                        ->where('installation_status', 'installed')
+                        ->count(),
+                    'description' => __('Plugins that are currently installed and available to operate.'),
+                    'icon' => 'heroicon-s-puzzle-piece',
+                    'color' => 'blue',
+                ],
+                [
+                    'label' => __('Trusted Plugins'),
+                    'value' => Plugin::query()
+                        ->where('installation_status', 'installed')
+                        ->where('available', true)
+                        ->where('validation_status', 'valid')
+                        ->where('trust_state', 'trusted')
+                        ->where('integrity_status', 'verified')
+                        ->count(),
+                    'description' => __('Installed plugins that passed validation, are trusted, and haven\'t been modified.'),
+                    'icon' => 'heroicon-s-shield-check',
+                    'color' => 'green',
+                ],
+                [
+                    'label' => __('Updates Available'),
+                    'value' => $this->updatesAvailableCount(),
+                    'description' => __('Installed plugins with a newer version available on GitHub.'),
+                    'icon' => 'heroicon-s-arrow-up-circle',
+                    'color' => 'info',
+                ],
             ],
-            [
-                'label' => __('Trusted Plugins'),
-                'value' => Plugin::query()
-                    ->where('installation_status', 'installed')
-                    ->where('available', true)
-                    ->where('validation_status', 'valid')
-                    ->where('trust_state', 'trusted')
-                    ->where('integrity_status', 'verified')
-                    ->count(),
-                'description' => __('Installed plugins that passed validation, are trusted, and haven\'t been modified.'),
-                'icon' => 'heroicon-s-shield-check',
-                'color' => 'green',
-            ],
-            [
-                'label' => __('Pending Plugin Installs'),
-                'value' => PluginInstallReview::query()
-                    ->whereIn('status', ['staged', 'scanned', 'review_ready'])
-                    ->count(),
-                'description' => __('Uploads waiting for security scan or admin approval.'),
-                'icon' => 'heroicon-s-arrow-down-tray',
-                'color' => 'amber',
-            ],
-            [
-                'label' => __('Plugins Needing Attention'),
-                'value' => $this->attentionPluginQuery()->count(),
-                'description' => __('Plugins that are blocked, modified, invalid, or not fully installed.'),
-                'icon' => 'heroicon-s-exclamation-triangle',
-                'color' => 'red',
-            ],
-            [
-                'label' => __('Updates Available'),
-                'value' => $this->updatesAvailableCount(),
-                'description' => __('Installed plugins with a newer version available on GitHub.'),
-                'icon' => 'heroicon-s-arrow-up-circle',
-                'color' => 'info',
+            'bottom_row' => [
+                [
+                    'label' => __('Pending Plugin Installs'),
+                    'value' => PluginInstallReview::query()
+                        ->whereIn('status', ['staged', 'scanned', 'review_ready'])
+                        ->count(),
+                    'description' => __('Uploads waiting for security scan or admin approval.'),
+                    'icon' => 'heroicon-s-arrow-down-tray',
+                    'color' => 'amber',
+                ],
+                [
+                    'label' => __('Plugins Needing Attention'),
+                    'value' => $this->attentionPluginQuery()->count(),
+                    'description' => __('Plugins that are blocked, modified, invalid, or not fully installed.'),
+                    'icon' => 'heroicon-s-exclamation-triangle',
+                    'color' => 'red',
+                ],
             ],
         ];
     }
