@@ -920,6 +920,14 @@ class ProcessM3uImport implements ShouldQueue
                             ...$channelFields,
                             'url' => $url,
                         ];
+                        // Add 1 adding unique stream_id from m3u file when channel url has stream=number
+                        if (!empty($channel['url']) && empty($channel['stream_id'])) {
+                                if (preg_match('/stream=(\d+)/', $channel['url'], $matches)) {
+                                        $channel['stream_id'] = $matches[1];  // Extract just "the number"
+                                } elseif (!empty($channel['title'])) {    // Fallback
+                                        $channel['stream_id'] = mb_strtolower(trim($channel['title']));
+                                }
+                        }
                         $extvlcopt = [];
                         $kodidrop = [];
                         foreach ($item->getExtTags() as $extTag) {
