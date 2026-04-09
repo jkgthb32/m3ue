@@ -9,7 +9,7 @@
     ],
     "license": "MIT",
     "require": {
-        "php": "^8.2",
+        "php": "^8.4",
         "ashallendesign/short-url": "^8.3",
         "calebporzio/sushi": "^2.5",
         "craft-forge/filament-language-switcher": "^1.2",
